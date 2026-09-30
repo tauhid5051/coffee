@@ -141,6 +141,10 @@ $lang['sale_x_action']                   = 'Bu işlem yapılamaz, satış içeri
 $lang['sale_already_returned']           = 'Satışın zaten bir iade kaydı var';
 $lang['sale_is_returned']                = 'Satış iade edildi';
 $lang['payment_was_returned']            = 'Ödeme iade edildi';
+$lang['return_quantity_exceeds_original'] = 'İade miktarı bu ürün için kalan mevcut miktarı aşıyor.';
+$lang['return_amount_exceeds_balance']   = 'İade tutarı kalan satış bakiyesini aşıyor.';
+$lang['refund_amount_exceeds_paid']      = 'Geri ödeme tutarı bu satış için kalan ödenmiş tutarı aşıyor.';
+
 $lang['packing']                         = 'Ambalaj';
 $lang['delivering']                      = 'Teslim ediliyor';
 $lang['delivered']                       = 'Teslim Edildi';

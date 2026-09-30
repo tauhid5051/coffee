@@ -130,7 +130,25 @@ class Sales_model extends CI_Model
                         $this->updateCostingAndPurchaseItem($return_item, $return_item['product_id'], $return_item['quantity']);
                     }
                 }
-                $this->db->update('sales', ['return_sale_ref' => $data['return_sale_ref'], 'surcharge' => $data['surcharge'], 'return_sale_total' => $data['grand_total'], 'return_id' => $sale_id], ['id' => $data['sale_id']]);
+                // Track ALL return sale ids linked to this original sale so multiple
+                // partial returns are preserved instead of overwriting the last one.
+                // The legacy return_id column is INT; migration 317 widens it to TEXT
+                // so it can hold a JSON array. Detect the actual type so this still
+                // works safely on databases that have not run that migration yet.
+                $return_ids = [];
+                if ($current = $this->db->get_where('sales', ['id' => $data['sale_id']])->row()) {
+                    if (!empty($current->return_id)) {
+                        $decoded = json_decode($current->return_id, true);
+                        $return_ids = is_array($decoded) ? $decoded : [$current->return_id];
+                    }
+                }
+                $return_ids[] = $sale_id;
+                $return_ids   = array_values(array_unique(array_filter(array_map('intval', $return_ids))));
+                $col          = $this->db->query("SHOW COLUMNS FROM {$this->db->dbprefix('sales')} LIKE 'return_id'")->row();
+                $col_type     = isset($col->Type) ? strtolower($col->Type) : 'int';
+                $is_text_col  = (strpos($col_type, 'int') === false);
+                $return_id_value = $is_text_col ? json_encode($return_ids) : (string) end($return_ids);
+                $this->db->update('sales', ['return_sale_ref' => $data['return_sale_ref'], 'surcharge' => $data['surcharge'], 'return_sale_total' => $data['return_sale_total'], 'return_id' => $return_id_value], ['id' => $data['sale_id']]);
             }
 
             if ($data['payment_status'] == 'partial' || $data['payment_status'] == 'paid' && !empty($payment)) {
@@ -577,6 +595,64 @@ class Sales_model extends CI_Model
             return $q->row();
         }
         return false;
+    }
+
+    public function getReturnSales($sale_id)
+    {
+        $this->db->where('sale_id', $sale_id);
+        $this->db->where('sale_status', 'returned');
+        $q = $this->db->get('sales');
+        if ($q->num_rows() > 0) {
+            foreach (($q->result()) as $row) {
+                $data[] = $row;
+            }
+            return $data;
+        }
+        return false;
+    }
+
+    public function getTotalReturnedAmount($sale_id)
+    {
+        $this->db->select_sum('grand_total', 'total_returned');
+        $this->db->where('sale_id', $sale_id);
+        $this->db->where('sale_status', 'returned');
+        $q = $this->db->get('sales');
+        if ($q->num_rows() > 0) {
+            return $q->row()->total_returned;
+        }
+        return 0;
+    }
+
+    public function getTotalReturnedQuantity($sale_id, $product_id, $option_id = null)
+    {
+        $this->db->select_sum('sale_items.quantity', 'total_qty');
+        $this->db->join('sales', 'sales.id = sale_items.sale_id');
+        $this->db->where('sales.sale_id', $sale_id);
+        $this->db->where('sales.sale_status', 'returned');
+        $this->db->where('sale_items.product_id', $product_id);
+        if ($option_id) {
+            $this->db->where('sale_items.option_id', $option_id);
+        } else {
+            $this->db->where('(sale_items.option_id IS NULL OR sale_items.option_id = 0)');
+        }
+        $q = $this->db->get('sale_items');
+        if ($q->num_rows() > 0) {
+            return abs($q->row()->total_qty);
+        }
+        return 0;
+    }
+
+    public function getTotalRefundedAmount($sale_id)
+    {
+        $this->db->select_sum('payments.amount', 'total_refunded');
+        $this->db->join('sales', 'sales.id = payments.sale_id');
+        $this->db->where('sales.sale_id', $sale_id);
+        $this->db->where('payments.type', 'returned');
+        $q = $this->db->get('payments');
+        if ($q->num_rows() > 0) {
+            return abs($q->row()->total_refunded);
+        }
+        return 0;
     }
 
     public function getSaleCosting($sale_id)

@@ -143,6 +143,23 @@ class MY_Controller extends CI_Controller
         exit;
     }
 
+    function timer_start()
+    {
+        return microtime(true);
+    }
+
+    function timer_end($start, $label = '')
+    {
+        $time = microtime(true) - $start;
+
+        echo '<pre style="background:#111;color:#0f0;padding:8px;">';
+        echo $label . ': ' . number_format($time, 4) . ' seconds';
+        echo '</pre>';
+
+        return $time;
+    }
+
+
     public function owner_only()
     {
         // if (!$this->Owner) {

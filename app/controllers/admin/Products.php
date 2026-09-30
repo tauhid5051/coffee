@@ -1510,7 +1510,135 @@ class Products extends MY_Controller
 
 
 
-       public function getProducts($warehouse_id = null)
+    public function getProducts($warehouse_id = null)
+{
+    $this->sma->checkPermissions('index', true);
+    $supplier = $this->input->get('supplier') ? $this->input->get('supplier') : null;
+
+    if ((!$this->Owner || !$this->Admin) && !$warehouse_id) {
+        $user         = $this->site->getUser();
+        $warehouse_id = $user->warehouse_id;
+    }
+    $detail_link = anchor('admin/products/view/$1', '<i class="fa fa-file-text-o"></i> ' . lang('product_details'));
+    $delete_link = "<a href='#' class='tip po' title='<b>" . $this->lang->line('delete_product') . "</b>' data-content=\"<p>"
+        . lang('r_u_sure') . "</p><a class='btn btn-danger po-delete1' id='a__$1' href='" . admin_url('products/delete/$1') . "'>"
+        . lang('i_m_sure') . "</a> <button class='btn po-close'>" . lang('no') . "</button>\"  rel='popover'><i class=\"fa fa-trash-o\"></i> "
+        . lang('delete_product') . '</a>';
+    $single_barcode = anchor('admin/products/print_barcodes/$1', '<i class="fa fa-print"></i> ' . lang('print_barcode_label'));
+    $action = '<div class="text-center"><div class="btn-group text-left">'
+        . '<button type="button" class="btn btn-default btn-xs btn-primary dropdown-toggle" data-toggle="dropdown">'
+        . lang('actions') . ' <span class="caret"></span></button>
+    <ul class="dropdown-menu pull-right" role="menu">
+        <li>' . $detail_link . '</li>
+        <li><a href="' . admin_url('products/add/$1') . '"><i class="fa fa-plus-square"></i> ' . lang('duplicate_product') . '</a></li>
+        <li><a href="' . admin_url('products/edit/$1') . '"><i class="fa fa-edit"></i> ' . lang('edit_product') . '</a></li>';
+    if ($warehouse_id) {
+        $action .= '<li><a href="' . admin_url('products/set_rack/$1/' . $warehouse_id) . '" data-toggle="modal" data-target="#myModal"><i class="fa fa-bars"></i> '
+            . lang('set_rack') . '</a></li>';
+    }
+    $action .= '<li><a href="' . base_url() . 'assets/uploads/$2" data-type="image" data-toggle="lightbox"><i class="fa fa-file-photo-o"></i> '
+        . lang('view_image') . '</a></li>
+        <li>' . $single_barcode . '</li>
+        <li class="divider"></li>
+        <li>' . $delete_link . '</li>
+        </ul>
+    </div></div>';
+    $this->load->library('datatables');
+
+    // Transaction-based stock (Purchase - Sale + Adjustment) so the listing matches the
+    // itemstock report instead of the stale products.quantity (FIFO quantity_balance sum),
+    // which cannot represent oversold (negative) stock.
+    $dbp  = $this->db->dbprefix;
+    $wid  = $warehouse_id ? (int) $warehouse_id : 0;
+    $pqty = "( SELECT product_id, SUM(quantity) qty FROM {$dbp}purchase_items" . ($wid ? " WHERE warehouse_id = {$wid}" : '') . " GROUP BY product_id ) PQty";
+    $sqty = "( SELECT si.product_id, SUM(si.quantity) qty FROM {$dbp}sale_items si" . ($wid ? " WHERE si.warehouse_id = {$wid}" : '') . " GROUP BY si.product_id ) SQty";
+    $aqty = "( SELECT ai.product_id, SUM(CASE WHEN ai.type = 'addition' THEN ai.quantity ELSE -1 * ai.quantity END) qty FROM {$dbp}adjustment_items ai" . ($wid ? " WHERE ai.warehouse_id = {$wid}" : '') . " GROUP BY ai.product_id ) AQty";
+
+    if ($warehouse_id) {
+        $this->datatables
+            ->select(
+                $this->db->dbprefix('products') . ".id as productid,
+                {$this->db->dbprefix('products')}.image as image,
+                {$this->db->dbprefix('products')}.code as code,
+                {$this->db->dbprefix('products')}.name as name,
+                {$this->db->dbprefix('brands')}.name as brand,
+                {$this->db->dbprefix('categories')}.name as cname,
+                {$this->db->dbprefix('products')}.cost as cost,
+                {$this->db->dbprefix('products')}.price as price,
+                (COALESCE(PQty.qty, 0) - COALESCE(SQty.qty, 0) + COALESCE(AQty.qty, 0)) as quantity,
+                {$this->db->dbprefix('units')}.code as unit,
+                wp.rack as rack,
+                {$this->db->dbprefix('products')}.alert_quantity as alert_quantity",
+                false
+            )
+            ->from('products');
+
+        if ($this->Settings->display_all_products) {
+            $this->datatables->join(
+                'warehouses_products wp',
+                "wp.product_id=products.id AND wp.warehouse_id={$warehouse_id}",
+                'left'
+            );
+        } else {
+            $this->datatables
+                ->join(
+                    'warehouses_products wp',
+                    "wp.product_id=products.id AND wp.warehouse_id={$warehouse_id}",
+                    'left'
+                )
+                ->where('wp.quantity !=', 0);
+        }
+
+        $this->datatables
+            ->join('categories', 'products.category_id=categories.id', 'left')
+            ->join('units', 'products.unit=units.id', 'left')
+            ->join('brands', 'products.brand=brands.id', 'left')
+            ->join($pqty, 'products.id = PQty.product_id', 'left')
+            ->join($sqty, 'products.id = SQty.product_id', 'left')
+            ->join($aqty, 'products.id = AQty.product_id', 'left');
+        // group_by('products.id') removed — every join above is already
+        // at most one row per product, so it added nothing but triggered
+        // CodeIgniter's "wrap query in SELECT * subquery" count logic,
+        // which caused the duplicate 'id' column error.
+
+    } else {
+        $this->datatables
+            ->select($this->db->dbprefix('products') . ".id as productid, {$this->db->dbprefix('products')}.image as image, {$this->db->dbprefix('products')}.code as code, {$this->db->dbprefix('products')}.name as name, {$this->db->dbprefix('brands')}.name as brand, {$this->db->dbprefix('categories')}.name as cname, cost as cost, price as price, (COALESCE(PQty.qty, 0) - COALESCE(SQty.qty, 0) + COALESCE(AQty.qty, 0)) as quantity, {$this->db->dbprefix('units')}.code as unit, '' as rack, alert_quantity", false)
+            ->from('products')
+            ->join('categories', 'products.category_id=categories.id', 'left')
+            ->join('units', 'products.unit=units.id', 'left')
+            ->join('brands', 'products.brand=brands.id', 'left')
+            ->join($pqty, 'products.id = PQty.product_id', 'left')
+            ->join($sqty, 'products.id = SQty.product_id', 'left')
+            ->join($aqty, 'products.id = AQty.product_id', 'left');
+        // group_by removed for the same reason as above.
+    }
+
+    if (!$this->Owner && !$this->Admin) {
+        if (!$this->session->userdata('show_cost')) {
+            $this->datatables->unset_column('cost');
+        }
+        if (!$this->session->userdata('show_price')) {
+            $this->datatables->unset_column('price');
+        }
+    }
+    if ($supplier) {
+        $this->datatables->group_start()
+            ->where('supplier1', $supplier)
+            ->or_where('supplier2', $supplier)
+            ->or_where('supplier3', $supplier)
+            ->or_where('supplier4', $supplier)
+            ->or_where('supplier5', $supplier)
+            ->group_end();
+    }
+    $this->datatables->add_column('Actions', $action, 'productid, image, code, name');
+    echo $this->datatables->generate();
+}
+
+
+
+
+       public function getProducts44444($warehouse_id = null)
     {
         $this->sma->checkPermissions('index', true);
         $supplier = $this->input->get('supplier') ? $this->input->get('supplier') : null;

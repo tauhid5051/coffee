@@ -1,22 +1,3 @@
-date : 02/08/2022
-
-1. D:\Tauhid\laragon\www\coffee\themes\default\admin\views\header.php
-2. D:\Tauhid\laragon\www\coffee\app\controllers\admin\Reports.php
-3. D:\Tauhid\laragon\www\coffee\themes\default\admin\views\reports\userWiseCollection.php
-
-
-
-
-$this->input->post('form_action') == 'delete1'
-
-public function delete1($id = null)
-
-
-'class="form-control input-tip datetime"  readonly
-
-
-
-
 
 CREATE USER 'mirpur_coffee'@'localhost' IDENTIFIED BY 'BT*xc9VCffYgN*wFmf';
 GRANT ALL PRIVILEGES ON mirpur_coffee. * TO 'mirpur_coffee'@'localhost';
@@ -56,3 +37,31 @@ TRUNCATE TABLE `mirpur_coffee`.sma_return_items;
 TRUNCATE TABLE `mirpur_coffee`.sma_stock_counts;
 
 
+ALTER TABLE sma_sales          ADD INDEX idx_pos_wh (pos, warehouse_id);
+ALTER TABLE sma_sales          ADD INDEX idx_pos_created (pos, created_by);
+ALTER TABLE sma_purchase_items ADD INDEX idx_expiry (expiry, quantity_balance);
+
+
+ALTER TABLE sma_sale_items
+  ADD INDEX idx_sale_items_wh_prod (warehouse_id, product_id, quantity);
+
+ALTER TABLE sma_purchase_items
+  ADD INDEX idx_purchase_items_wh_prod (warehouse_id, product_id, quantity);
+
+ALTER TABLE sma_adjustment_items
+  ADD INDEX idx_adjustment_items_wh_prod (warehouse_id, product_id, quantity);
+
+
+
+ALTER TABLE sma_purchases
+ADD INDEX idx_purchases_date (`date`);
+
+
+ALTER TABLE sma_sales
+ADD INDEX idx_sales_date (date);
+
+ALTER TABLE sma_sale_items
+ADD INDEX idx_sale_items_sale_product (sale_id, product_id);
+
+ALTER TABLE sma_sale_items
+ADD INDEX idx_sale_items_product (product_id);

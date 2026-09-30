@@ -1,59 +1,46 @@
-# =============================================================================
-# Stock Manager Advance (SMA) / CodeIgniter 3 — .gitignore
-# =============================================================================
-
-# ----- Composer dependencies (managed via composer install) -----
-# NOTE: vendor/ is currently tracked in this repo. To stop tracking it, run:
-#   git rm -r --cached vendor/
 /vendor/
 
-# ----- CodeIgniter runtime: cache & logs (keep the placeholder index.html) -----
+# CodeIgniter runtime
 /app/cache/*
 !/app/cache/index.html
 /app/logs/*
 !/app/logs/index.html
-!/.htaccess
 
-# ----- User-uploaded files (runtime, per-installation) -----
-# Keep the placeholder index.html so the dir exists on checkout.
 /assets/uploads/*
 !/assets/uploads/index.html
 
-# Generated captcha images
 /assets/captcha/*
 !/assets/captcha/index.html
 
-# Runtime logs / dumps
 /assets/logs/*.log
 /assets/logs/log-*.php
 
-# Exported config dumps generated at runtime
 /assets/config_dumps/*
 !/assets/config_dumps/index.html
 !/assets/config_dumps/index.php
 
-# ----- Jasper reports: ignore only generated runtime output -----
-# Source report definitions (.jrxml), compiled templates (.jasper) and
-# data_files/ stay tracked. Only per-run outputs are ignored.
 /jasper/output/*
 !/jasper/output/.gitkeep
 /jasper/*.pdf
 /jasper/*.html
 
-# ----- Sensitive configuration (real credentials must NOT be committed) -----
-# Keep .example templates in the repo instead; copy to the real name per environment.
 /app/config/database.php
 /app/config/config.php
 /app/config/payment_gateways.php
 /app/config/hybridauthlib.php
 !/app/config/*.example
 
-# ----- Application files directory (runtime) -----
 /files/*
 !/files/.gitkeep
 
-# ----- Binary / media / document uploads (runtime artifacts) -----
-# Archives
+/.kilo/
+/.kilocode/
+/.claude/
+/.cursor/
+/.cursorrules
+/.windsurf/
+/.aider*/
+
 *.zip
 *.rar
 *.7z
@@ -63,7 +50,7 @@
 *.gz
 *.bz2
 *.xz
-# Audio
+
 *.mp3
 *.wav
 *.ogg
@@ -71,7 +58,7 @@
 *.aac
 *.m4a
 *.wma
-# Video
+
 *.mp4
 *.avi
 *.mkv
@@ -82,7 +69,7 @@
 *.mpeg
 *.mpg
 *.m4v
-# Documents
+
 *.pdf
 *.doc
 *.docx
@@ -95,18 +82,20 @@
 *.odp
 *.rtf
 
-# ----- Temporary / editor / OS files -----
 *.tmp
+*.temp
 *.bak
 *.swp
+*.swo
 *.log
+*.cache
 ~$*
+
 Thumbs.db
 ehthumbs.db
 Desktop.ini
 .DS_Store
 
-# ----- IDE / editor -----
 .idea/
 .vscode/
 *.codekit
@@ -116,14 +105,31 @@ nbproject/
 .project
 .settings/
 
-# ----- Environment / local secrets -----
 .env
 .env.*
 !.env.example
 
-# =============================================================================
-# The following paths are INTENTIONALLY tracked and NOT ignored:
-#   /system/        — CodeIgniter 3 framework (vendored with the app)
-#   /composer.lock  — pinned dependency versions for a deployed application
-#   /update/        — SMA updater module (application source)
-# =============================================================================
+nul
+NUL
+NUL.*
+
+.phpunit.result.cache
+.php-cs-fixer.cache
+.phpstan.cache
+.phpstan.neon
+/coverage/
+/.phpunit.cache/
+
+*.orig
+*.rej
+
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+.DS_Store
+desktop.ini
+
+* copy.php
+* copy.*

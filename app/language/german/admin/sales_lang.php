@@ -108,6 +108,10 @@ $lang['seller']                            = 'Verkäufer';
 $lang['users']                             = 'Users';
 $lang['return_note']                       = 'Retour Hinweis';
 $lang['return_sale_added']                 = 'Retour Verkauf erfolgreich hinzugefügt';
+$lang['return_quantity_exceeds_original'] = 'Rückgabemenge überschreitet die verbleibende verfügbare Menge für diesen Artikel.';
+$lang['return_amount_exceeds_balance']   = 'Rückgabebetrag überschreitet das verbleibende Verkaufsguthaben.';
+$lang['refund_amount_exceeds_paid']      = 'Erstattungsbetrag überschreitet den verbleibenden bezahlten Betrag für diesen Verkauf.';
+
 $lang['return_has_been_added']             = 'Einge Artikel für diesen Verkauf sind Retour gegangen';
 $lang['return_surcharge']                  = 'Aufpreis retour';
 $lang['payment_returned']                  = 'Zahlung zurück erhalten';

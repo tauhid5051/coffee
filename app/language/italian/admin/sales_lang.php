@@ -141,6 +141,10 @@ $lang['sale_x_action']                   = 'Questa azione non può essere esegui
 $lang['sale_already_returned']           = 'La vendita ha già un record ritorno';
 $lang['sale_is_returned']                = 'La vendita ha un record ritorno';
 $lang['payment_was_returned']            = 'Il Pagamento è stato ritornato';
+$lang['return_quantity_exceeds_original'] = 'La quantità restituita supera la quantità disponibile rimanente per questo articolo.';
+$lang['return_amount_exceeds_balance']   = "L'importo del reso supera il saldo rimanente della vendita.";
+$lang['refund_amount_exceeds_paid']      = "L'importo del rimborso supera l'importo pagato rimanente per questa vendita.";
+
 $lang['packing']                         = 'Imballaggio';
 $lang['delivering']                      = 'Consegnando';
 $lang['delivered']                       = 'Consegnato';

@@ -490,8 +490,10 @@ class Pos extends MY_Controller
         $this->data['payments']        = $this->pos_model->getInvoicePayments($sale_id);
         $this->data['pos']             = $this->pos_model->getSetting();
         $this->data['barcode']         = $this->barcode($inv->reference_no, 'code128', 30);
-        $this->data['return_sale']     = $inv->return_id ? $this->pos_model->getInvoiceByID($inv->return_id) : null;
-        $this->data['return_rows']     = $inv->return_id ? $this->pos_model->getAllInvoiceItems($inv->return_id) : null;
+        $return_ids    = $this->site->getReturnSaleIds($inv);
+        $last_return_id = $return_ids ? end($return_ids) : 0;
+        $this->data['return_sale']     = $last_return_id ? $this->pos_model->getInvoiceByID($last_return_id) : null;
+        $this->data['return_rows']     = $last_return_id ? $this->pos_model->getAllInvoiceItems($last_return_id) : null;
         $this->data['return_payments'] = $this->data['return_sale'] ? $this->pos_model->getInvoicePayments($this->data['return_sale']->id) : null;
         $this->data['inv']             = $inv;
         $this->data['sid']             = $sale_id;
@@ -746,14 +748,12 @@ class Pos extends MY_Controller
                 ->select($this->db->dbprefix('sales') . ".id as id, DATE_FORMAT(date, '%Y-%m-%d %T') as date, reference_no, biller, customer, (grand_total+COALESCE(rounding, 0)), paid, CONCAT(grand_total, '__', rounding, '__', paid) as balance, sale_status, payment_status, companies.email as cemail")
                 ->from('sales')
                 ->join('companies', 'companies.id=sales.customer_id', 'left')
-                ->where('warehouse_id', $warehouse_id)
-                ->group_by('sales.id');
+                ->where('warehouse_id', $warehouse_id);
         } else {
             $this->datatables
                 ->select($this->db->dbprefix('sales') . ".id as id, DATE_FORMAT(date, '%Y-%m-%d %T') as date, reference_no, biller, customer, (grand_total+COALESCE(rounding, 0)), paid, CONCAT(grand_total, '__', rounding, '__', paid) as balance, sale_status, payment_status, companies.email as cemail")
                 ->from('sales')
-                ->join('companies', 'companies.id=sales.customer_id', 'left')
-                ->group_by('sales.id');
+                ->join('companies', 'companies.id=sales.customer_id', 'left');
         }
         $this->datatables->where('pos', 1);
         if (!$this->Customer && !$this->Supplier && !$this->Owner && !$this->Admin && !$this->session->userdata('view_right')) {
@@ -762,6 +762,20 @@ class Pos extends MY_Controller
             $this->datatables->where('customer_id', $this->session->userdata('user_id'));
         }
         $this->datatables->add_column('Actions', $action, 'id, cemail')->unset_column('cemail');
+
+        $client_sort_applied = false;
+        $sorting_cols        = (int) $this->input->post('iSortingCols');
+        for ($i = 0; $i < $sorting_cols; $i++) {
+            $sort_col_idx = (int) $this->input->post('iSortCol_' . $i);
+            $sortable     = $this->input->post('bSortable_' . $sort_col_idx);
+            if ($sortable === 'true') {
+                $client_sort_applied = true;
+                break;
+            }
+        }
+        if (!$client_sort_applied) {
+            $this->db->order_by('id', 'desc');
+        }
         echo $this->datatables->generate();
     }
 
@@ -1185,10 +1199,20 @@ class Pos extends MY_Controller
                     $this->data['biller']          = $this->pos_model->getCompanyByID($inv->biller_id);
                     $this->data['customer']        = $this->pos_model->getCompanyByID($inv->customer_id);
                     $this->data['payments']        = $this->pos_model->getInvoicePayments($inv->id);
-                    $this->data['return_sale']     = $inv->return_id ? $this->pos_model->getInvoiceByID($inv->return_id) : null;
-                    $this->data['return_rows']     = $inv->return_id ? $this->pos_model->getAllInvoiceItems($inv->return_id) : null;
-                    $this->data['return_payments'] = $this->data['return_sale'] ? $this->pos_model->getInvoicePayments($this->data['return_sale']->id) : null;
-                    $this->data['inv']             = $inv;
+        $return_ids    = $this->site->getReturnSaleIds($inv);
+        $this->data['return_sales']     = [];
+        $this->data['return_rows_list'] = [];
+        $this->data['return_payments_list'] = [];
+        foreach ($return_ids as $rid) {
+            $this->data['return_sales'][]     = $this->pos_model->getInvoiceByID($rid);
+            $this->data['return_rows_list'][] = $this->pos_model->getAllInvoiceItems($rid);
+            $this->data['return_payments_list'][] = $this->pos_model->getInvoicePayments($rid);
+        }
+        $last_return_id = $return_ids ? end($return_ids) : 0;
+        $this->data['return_sale']     = $last_return_id ? $this->pos_model->getInvoiceByID($last_return_id) : null;
+        $this->data['return_rows']     = $last_return_id ? $this->pos_model->getAllInvoiceItems($last_return_id) : null;
+        $this->data['return_payments'] = $this->data['return_sale'] ? $this->pos_model->getInvoicePayments($this->data['return_sale']->id) : null;
+        $this->data['inv']             = $inv;
                     $this->data['print']           = $inv->id;
                     $this->data['created_by']      = $this->site->getUser($inv->created_by);
                 }
@@ -1391,6 +1415,10 @@ class Pos extends MY_Controller
 
         $bc   = [['link' => base_url(), 'page' => lang('home')], ['link' => admin_url('pos'), 'page' => lang('pos')], ['link' => '#', 'page' => lang('pos_sales')]];
         $meta = ['page_title' => lang('pos_sales'), 'bc' => $bc];
+        $this->data['open_return_modal_id'] = $this->session->flashdata('open_return_modal_id');
+        $this->data['open_return_modal_url'] = $this->data['open_return_modal_id'] ? 'pos/view/' . $this->data['open_return_modal_id'] . '/1' : null;
+        $bc   = [['link' => base_url(), 'page' => lang('home')], ['link' => admin_url('pos'), 'page' => lang('pos')], ['link' => '#', 'page' => lang('pos_sales')]];
+        $meta = ['page_title' => lang('pos_sales'), 'bc' => $bc];
         $this->page_construct('pos/sales', $meta, $this->data);
     }
 
@@ -1586,8 +1614,10 @@ class Pos extends MY_Controller
         $this->data['payments']        = $this->pos_model->getInvoicePayments($sale_id);
         $this->data['pos']             = $this->pos_model->getSetting();
         $this->data['barcode']         = $this->barcode($inv->reference_no, 'code128', 30);
-        $this->data['return_sale']     = $inv->return_id ? $this->pos_model->getInvoiceByID($inv->return_id) : null;
-        $this->data['return_rows']     = $inv->return_id ? $this->pos_model->getAllInvoiceItems($inv->return_id) : null;
+        $return_ids    = $this->site->getReturnSaleIds($inv);
+        $last_return_id = $return_ids ? end($return_ids) : 0;
+        $this->data['return_sale']     = $last_return_id ? $this->pos_model->getInvoiceByID($last_return_id) : null;
+        $this->data['return_rows']     = $last_return_id ? $this->pos_model->getAllInvoiceItems($last_return_id) : null;
         $this->data['return_payments'] = $this->data['return_sale'] ? $this->pos_model->getInvoicePayments($this->data['return_sale']->id) : null;
         $this->data['inv']             = $inv;
         $this->data['sid']             = $sale_id;

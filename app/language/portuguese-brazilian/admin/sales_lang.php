@@ -112,6 +112,10 @@ $lang['seller']                            = 'Vendedor';
 $lang['users']                             = 'Usuários';
 $lang['return_note']                       = 'Nota da Devolução';
 $lang['return_sale_added']                 = 'Devolução adicionada com sucesso';
+$lang['return_quantity_exceeds_original'] = 'A quantidade devolvida excede a quantidade disponível restante para este item.';
+$lang['return_amount_exceeds_balance']   = 'O valor da devolução excede o saldo restante da venda.';
+$lang['refund_amount_exceeds_paid']      = 'O valor do reembolso excede o valor pago restante para esta venda.';
+
 $lang['return_has_been_added']             = 'Alguns itens foram devolvidos desta venda';
 $lang['return_surcharge']                  = 'Reembolso de Valor Excedente';
 $lang['payment_returned']                  = 'Pagamento Devolvido';

@@ -1488,16 +1488,16 @@ class Reports extends MY_Controller
         $start_date  = $this->input->get('start_date') ? $this->input->get('start_date') : null;
         $end_date    = $this->input->get('end_date') ? $this->input->get('end_date') : null;
 
-        $pp = "( SELECT product_id, p.date as date, p.created_by as created_by, SUM(CASE WHEN pi.purchase_id IS NOT NULL THEN quantity ELSE 0 END) as purchasedQty, SUM(quantity_balance) as balacneQty, SUM( unit_cost * quantity_balance ) balacneValue, SUM( (CASE WHEN pi.purchase_id IS NOT NULL THEN (pi.subtotal) ELSE 0 END) ) totalPurchase from {$this->db->dbprefix('purchase_items')} pi LEFT JOIN {$this->db->dbprefix('purchases')} p on p.id = pi.purchase_id WHERE pi.status = 'received' ";
+        $pp = "( SELECT pi.product_id as pc_product_id, p.date as date_purchase, p.created_by as created_by_purchase, SUM(CASE WHEN pi.purchase_id IS NOT NULL THEN quantity ELSE 0 END) as purchasedQty, SUM(quantity_balance) as balacneQty, SUM( unit_cost * quantity_balance ) balacneValue, SUM( (CASE WHEN pi.purchase_id IS NOT NULL THEN (pi.subtotal) ELSE 0 END) ) totalPurchase from {$this->db->dbprefix('purchase_items')} pi LEFT JOIN {$this->db->dbprefix('purchases')} p on p.id = pi.purchase_id WHERE pi.status = 'received' ";
         // WHERE p.status != 'pending' AND p.status != 'ordered'
-        $sp = '( SELECT si.product_id, s.date as date, s.created_by as created_by, SUM( si.quantity ) soldQty, SUM( si.quantity * si.sale_unit_price ) totalSale from ' . $this->db->dbprefix('costing') . ' si JOIN ' . $this->db->dbprefix('sales') . ' s on s.id = si.sale_id ';
+        $sp = '( SELECT si.product_id as ps_product_id, s.date as date_sales, s.created_by as created_by_sales, SUM( si.quantity ) soldQty, SUM( si.quantity * si.sale_unit_price ) totalSale from ' . $this->db->dbprefix('costing') . ' si JOIN ' . $this->db->dbprefix('sales') . ' s on s.id = si.sale_id ';
         // $sp = '( SELECT si.product_id, s.date as date, s.created_by as created_by, SUM( si.quantity ) soldQty, SUM( si.subtotal ) totalSale from ' . $this->db->dbprefix('sale_items') . ' si JOIN ' . $this->db->dbprefix('sales') . ' s on s.id = si.sale_id ';
 
 
         // Stock adjustments subquery (addition/subtraction). Mirrors the logic used by the
         // itemstock report so that Stock In Hand = Purchased - Sold + Adjusted, instead of
         // relying on the stale purchase_items.quantity_balance FIFO leftover.
-        $ap = "( SELECT ai.product_id, SUM( CASE WHEN ai.type = 'addition' THEN ai.quantity ELSE -1 * ai.quantity END ) as adjustedQty from {$this->db->dbprefix('adjustment_items')} ai LEFT JOIN {$this->db->dbprefix('adjustments')} a on a.id = ai.adjustment_id ";
+        $ap = "( SELECT ai.product_id as pa_product_id, SUM( CASE WHEN ai.type = 'addition' THEN ai.quantity ELSE -1 * ai.quantity END ) as adjustedQty from {$this->db->dbprefix('adjustment_items')} ai LEFT JOIN {$this->db->dbprefix('adjustments')} a on a.id = ai.adjustment_id ";
 
         if ($start_date || $warehouse || $user) {
             $sp .= ' WHERE ';
@@ -1538,9 +1538,9 @@ class Reports extends MY_Controller
                 COALESCE( PSales.totalSale, 0 ) as TotalSales,
                 (COALESCE( PSales.totalSale, 0 ) - COALESCE( PCosts.totalPurchase, 0 )) as Profit', false)
                 ->from('products')
-                ->join($sp, 'products.id = PSales.product_id', 'left')
-                ->join($pp, 'products.id = PCosts.product_id', 'left')
-                ->join($ap, 'products.id = PAdjustments.product_id', 'left')
+                ->join($sp, 'products.id = PSales.ps_product_id', 'left')
+                ->join($pp, 'products.id = PCosts.pc_product_id', 'left')
+                ->join($ap, 'products.id = PAdjustments.pa_product_id', 'left')
                 ->where('products.type !=', 'combo')
                 ->group_by('products.code');
 
@@ -1671,9 +1671,9 @@ class Reports extends MY_Controller
                     ((COALESCE( PCosts.purchasedQty, 0 ) - COALESCE( PSales.soldQty, 0 ) + COALESCE( PAdjustments.adjustedQty, 0 )) * COALESCE( {$this->db->dbprefix('products')}.cost, 0 ))
                 ) as balance, {$this->db->dbprefix('products')}.id as id", false)
                 ->from('products')
-                ->join($sp, 'products.id = PSales.product_id', 'left')
-                ->join($pp, 'products.id = PCosts.product_id', 'left')
-                ->join($ap, 'products.id = PAdjustments.product_id', 'left')
+                ->join($sp, 'products.id = PSales.ps_product_id', 'left')
+                ->join($pp, 'products.id = PCosts.pc_product_id', 'left')
+                ->join($ap, 'products.id = PAdjustments.pa_product_id', 'left')
                 ->where('products.type !=', 'combo')
                 ->group_by('products.code');
 
@@ -3190,10 +3190,8 @@ class Reports extends MY_Controller
     }
 
 
-    public function UserWiseCollection1()
+    public function UserWiseCollection12()
     {
-        //  $this->print_arrays($this->input->post());
-
         $this->sma->checkPermissions('customers');
         $this->data['error'] = (validation_errors()) ? validation_errors() : $this->session->flashdata('error');
 
@@ -3204,10 +3202,6 @@ class Reports extends MY_Controller
         $this->data['customers'] = [];
         $this->data['allStaff']      = $this->reports_model->getStaff();
         $this->data['categories'] = $this->site->getAllCategories();
-        // $this->data['customer_groups'] = $this->companies_model->getAllCustomerGroups();
-        // $this->data['price_groups']    = $this->companies_model->getAllPriceGroups();
-
-
         $customer      = $this->input->post('customer') ? $this->input->post('customer') : null;
         $product      = $this->input->post('product') ? $this->input->post('product') : null;
         $customer_group      = $this->input->post('customer_group') ? $this->input->post('customer_group') : null;
@@ -3215,9 +3209,6 @@ class Reports extends MY_Controller
         $subcategory      = $this->input->post('subcategory') ? $this->input->post('subcategory') : null;
         $start_date      = $this->input->post('start_date') ? $this->input->post('start_date') : null;
         $end_date      = $this->input->post('end_date') ? $this->input->post('end_date') : null;
-
-
-
         if ($start_date) {
             $start_date = $this->input->post('start_date');
             $start_date = str_replace('/', '-', $start_date);
@@ -3232,7 +3223,6 @@ class Reports extends MY_Controller
         $today = date("Y-m-d");
         $today_end = date("Y-m-d", strtotime($today . ' +1 day'));
 
-
         $this->db->select("sma_users.`first_name`, sma_users.`last_name`, COUNT(sma_payments.sale_id) AS total_invoice, SUM(sma_sales.grand_total) AS total_amount, SUM(sma_payments.`amount`) AS paid, SUM( CASE WHEN sma_payments.`paid_by` = 'cash' THEN sma_payments.`amount` ELSE 0 END ) cash, SUM(sma_sales.grand_total) - SUM(sma_sales.paid) AS balance", false)
             ->from('sma_users')
             ->join('sma_sales', '`sma_users`.`id` = sma_sales.`created_by`', 'left')
@@ -3242,8 +3232,6 @@ class Reports extends MY_Controller
         if ($customer) {
             $this->db->where('sma_sales.created_by', $customer);
         }
-
-
 
         if ($start_date && $end_date) {
             $this->db->where('sma_payments.date BETWEEN "' . $start_date . '" and "' . $end_date . '"');
@@ -3259,72 +3247,645 @@ class Reports extends MY_Controller
         $this->data['totalPaid'] = array_sum(array_column($this->data['records'], 'paid'));
         $this->data['totalCash'] = array_sum(array_column($this->data['records'], 'cash'));
         $this->data['totalBalance'] = array_sum(array_column($this->data['records'], 'balance'));
-
-        // $this->print_arrays($this->db->last_query());
-
-        //    $this->print_arrays( $this->session);
-
         $this->page_construct('reports/userWiseCollection1', $meta, $this->data);
     }
 
+
+    public function UserWiseCollectionDetails()
+    {
+        $this->sma->checkPermissions('customers');
+
+        $this->data['allStaff'] = $this->reports_model->getStaff();
+
+        $user_id = $this->input->post('user')
+            ? $this->input->post('user')
+            : null;
+
+        $start_date = $this->input->post('start_date')
+            ? $this->input->post('start_date')
+            : date('d/m/Y');
+
+        $end_date = $this->input->post('end_date')
+            ? $this->input->post('end_date')
+            : date('d/m/Y');
+
+        $start_db = date(
+            'Y-m-d',
+            strtotime(str_replace('/', '-', $start_date))
+        );
+
+        $end_db = date(
+            'Y-m-d',
+            strtotime(
+                str_replace('/', '-', $end_date) . ' +1 day'
+            )
+        );
+
+        $this->db
+            ->select("
+            sma_payments.id AS payment_id,
+            sma_payments.date AS payment_date,
+            sma_payments.amount,
+            sma_payments.paid_by,
+
+            sma_sales.id AS sale_id,
+            sma_sales.reference_no,
+            sma_sales.customer,
+            sma_sales.grand_total,
+
+            sma_users.id AS user_id,
+            sma_users.first_name,
+            sma_users.last_name
+        ", false)
+            ->from('sma_payments')
+            ->join(
+                'sma_sales',
+                'sma_sales.id = sma_payments.sale_id',
+                'left'
+            )
+            ->join(
+                'sma_users',
+                'sma_users.id = sma_sales.created_by',
+                'left'
+            )
+            ->where('sma_payments.date >=', $start_db)
+            ->where('sma_payments.date <', $end_db)
+            ->order_by('sma_payments.date', 'DESC');
+
+        if ($user_id) {
+            $this->db->where(
+                'sma_sales.created_by',
+                $user_id
+            );
+        }
+
+        $query = $this->db->get();
+
+        $this->data['records'] = $query->result_array();
+
+        // Totals
+        $this->data['totalCollection'] = 0;
+        $this->data['totalCash']       = 0;
+        $this->data['totalOther']      = 0;
+
+        foreach ($this->data['records'] as $row) {
+
+            $amount = (float) $row['amount'];
+
+            $this->data['totalCollection'] += $amount;
+
+            if (strtolower($row['paid_by']) == 'cash') {
+                $this->data['totalCash'] += $amount;
+            } else {
+                $this->data['totalOther'] += $amount;
+            }
+        }
+
+        $bc = [
+            [
+                'link' => base_url(),
+                'page' => lang('home')
+            ],
+            [
+                'link' => admin_url('reports'),
+                'page' => lang('reports')
+            ],
+            [
+                'link' => '#',
+                'page' => lang('User Wise Collection Details')
+            ]
+        ];
+
+        $meta = [
+            'page_title' => lang('User Wise Collection Details'),
+            'bc'         => $bc
+        ];
+
+        $this->page_construct(
+            'reports/userWiseCollectionDetails',
+            $meta,
+            $this->data
+        );
+    }
+
+
+
+    public function UserWiseCollectionDetailsExport()
+    {
+        $this->sma->checkPermissions('customers');
+
+        // -------------------------------------------------
+        // FILTERS
+        // -------------------------------------------------
+
+        $user_id = trim(
+            $this->input->post('user')
+                ? $this->input->post('user')
+                : ''
+        );
+
+        $start_date = trim(
+            $this->input->post('start_date')
+                ? $this->input->post('start_date')
+                : date('d/m/Y')
+        );
+
+        $end_date = trim(
+            $this->input->post('end_date')
+                ? $this->input->post('end_date')
+                : date('d/m/Y')
+        );
+
+        // -------------------------------------------------
+        // DATE CONVERSION
+        // -------------------------------------------------
+
+        $start_db = date(
+            'Y-m-d',
+            strtotime(
+                str_replace('/', '-', $start_date)
+            )
+        );
+
+        $end_db = date(
+            'Y-m-d',
+            strtotime(
+                str_replace('/', '-', $end_date)
+            )
+        );
+
+        $end_db_exclusive = date(
+            'Y-m-d',
+            strtotime($end_db . ' +1 day')
+        );
+
+        // -------------------------------------------------
+        // QUERY
+        // -------------------------------------------------
+
+        $this->db
+            ->select("
+            sma_payments.id AS payment_id,
+            sma_payments.date AS payment_date,
+            sma_payments.amount,
+            sma_payments.paid_by,
+
+            sma_sales.id AS sale_id,
+            sma_sales.reference_no,
+            sma_sales.customer,
+            sma_sales.grand_total,
+
+            sma_users.first_name,
+            sma_users.last_name
+        ", false)
+
+            ->from('sma_payments')
+
+            ->join(
+                'sma_sales',
+                'sma_sales.id = sma_payments.sale_id',
+                'left'
+            )
+
+            ->join(
+                'sma_users',
+                'sma_users.id = sma_sales.created_by',
+                'left'
+            )
+
+            ->where(
+                'sma_payments.date >=',
+                $start_db . ' 00:00:00'
+            )
+
+            ->where(
+                'sma_payments.date <',
+                $end_db_exclusive . ' 00:00:00'
+            );
+
+        // -------------------------------------------------
+        // USER FILTER
+        // -------------------------------------------------
+
+        if ($user_id !== '') {
+
+            $this->db->where(
+                'sma_sales.created_by',
+                $user_id
+            );
+        }
+
+        // -------------------------------------------------
+        // ORDER
+        // -------------------------------------------------
+
+        $this->db
+            ->order_by(
+                'sma_users.first_name',
+                'ASC'
+            )
+            ->order_by(
+                'sma_payments.date',
+                'DESC'
+            );
+
+        $query = $this->db->get();
+
+        // -------------------------------------------------
+        // FILE NAME
+        // -------------------------------------------------
+
+        $filename =
+            'user_wise_collection_details_' .
+            date('Y-m-d_H-i-s') .
+            '.csv';
+
+        // -------------------------------------------------
+        // HEADERS
+        // -------------------------------------------------
+
+        header(
+            'Content-Type: text/csv; charset=utf-8'
+        );
+
+        header(
+            'Content-Disposition: attachment; filename="' .
+                $filename .
+                '"'
+        );
+
+        header('Pragma: no-cache');
+        header('Expires: 0');
+
+        // -------------------------------------------------
+        // OUTPUT
+        // -------------------------------------------------
+
+        $output = fopen(
+            'php://output',
+            'w'
+        );
+
+        // Excel UTF-8 BOM
+        fprintf(
+            $output,
+            chr(0xEF) .
+                chr(0xBB) .
+                chr(0xBF)
+        );
+
+        // -------------------------------------------------
+        // REPORT TITLE
+        // -------------------------------------------------
+
+        fputcsv(
+            $output,
+            [
+                'User Wise Collection Details'
+            ]
+        );
+
+        fputcsv(
+            $output,
+            [
+                'Date Range',
+                $start_date . ' - ' . $end_date
+            ]
+        );
+
+        fputcsv(
+            $output,
+            []
+        );
+
+        // -------------------------------------------------
+        // TABLE HEADER
+        // -------------------------------------------------
+
+        fputcsv(
+            $output,
+            [
+                'Payment Date',
+                'User',
+                'Sale ID',
+                'Reference No',
+                'Customer',
+                'Invoice Total',
+                'Collection',
+                'Paid By'
+            ]
+        );
+
+        // -------------------------------------------------
+        // TOTALS
+        // -------------------------------------------------
+
+        $totalCollection = 0;
+        $totalCash       = 0;
+        $totalOther      = 0;
+
+        $invoiceTotals = [];
+
+        // -------------------------------------------------
+        // DATA
+        // -------------------------------------------------
+
+        foreach ($query->result() as $row) {
+
+            $amount = (float) $row->amount;
+
+            $user_name = trim(
+                $row->first_name . ' ' .
+                    $row->last_name
+            );
+
+            if ($user_name === '') {
+                $user_name = '-';
+            }
+
+            $paid_by = ucfirst(
+                strtolower(
+                    trim($row->paid_by)
+                )
+            );
+
+            if ($paid_by === '') {
+                $paid_by = '-';
+            }
+
+            // Collection
+            $totalCollection += $amount;
+
+            // Cash / Other
+            if (
+                strtolower(trim($row->paid_by)) === 'cash'
+            ) {
+                $totalCash += $amount;
+            } else {
+                $totalOther += $amount;
+            }
+
+            // Unique invoice total
+            if (
+                !empty($row->sale_id) &&
+                !isset($invoiceTotals[$row->sale_id])
+            ) {
+                $invoiceTotals[$row->sale_id] =
+                    (float) $row->grand_total;
+            }
+
+            fputcsv(
+                $output,
+                [
+                    date(
+                        'd/m/Y H:i',
+                        strtotime($row->payment_date)
+                    ),
+
+                    $user_name,
+
+                    $row->sale_id,
+
+                    $row->reference_no,
+
+                    $row->customer,
+
+                    number_format(
+                        (float) $row->grand_total,
+                        2,
+                        '.',
+                        ''
+                    ),
+
+                    number_format(
+                        $amount,
+                        2,
+                        '.',
+                        ''
+                    ),
+
+                    $paid_by
+                ]
+            );
+        }
+
+        // -------------------------------------------------
+        // TOTALS
+        // -------------------------------------------------
+
+        $totalInvoiceAmount =
+            array_sum($invoiceTotals);
+
+        fputcsv(
+            $output,
+            []
+        );
+
+        fputcsv(
+            $output,
+            [
+                '',
+                '',
+                '',
+                '',
+                'Total Invoice Amount',
+                number_format(
+                    $totalInvoiceAmount,
+                    2,
+                    '.',
+                    ''
+                ),
+                '',
+                ''
+            ]
+        );
+
+        fputcsv(
+            $output,
+            [
+                '',
+                '',
+                '',
+                '',
+                'Total Cash',
+                '',
+                number_format(
+                    $totalCash,
+                    2,
+                    '.',
+                    ''
+                ),
+                ''
+            ]
+        );
+
+        fputcsv(
+            $output,
+            [
+                '',
+                '',
+                '',
+                '',
+                'Total Other',
+                '',
+                number_format(
+                    $totalOther,
+                    2,
+                    '.',
+                    ''
+                ),
+                ''
+            ]
+        );
+
+        fputcsv(
+            $output,
+            [
+                '',
+                '',
+                '',
+                '',
+                'Total Collection',
+                '',
+                number_format(
+                    $totalCollection,
+                    2,
+                    '.',
+                    ''
+                ),
+                ''
+            ]
+        );
+
+        fclose($output);
+
+        exit;
+    }
 
 
 
     public function UserWiseCollection()
     {
+        $this->sma->checkPermissions('customers');
 
-        $this->load->database();  //load the driver first
-        $mysqlUserName      = $this->db->username;
-        $mysqlPassword      = $this->db->password;
-        $mysqlHostName      = $this->db->hostname;
-        $DbName             = $this->db->database;
+        $this->data['error'] = (validation_errors())
+            ? validation_errors()
+            : $this->session->flashdata('error');
 
-
-        // $this->listParametersExample();
-
-        $input = FCPATH . 'assets/jasper/compiled/paymentSummeryReport.jasper';
-        $output = FCPATH . 'assets/jasper/output';
-
-        $this->print_arrays($mysqlUserName);
-
-
-        $options = [
-            'format' => ['pdf'],
-            'locale' => 'en',
-            // 'params' => [],
-            'params' => [
-                'startDate' => $this->input->get('startDate'),
-                'createdBy' => $this->input->get('createdBy'),
-                'endDate' => $this->input->get('endDate'),
-                'address' => $this->input->get('branchAddress'),
-                'branchName' => $this->data['Settings']->site_name,
-                //'SUBREPORT_DIR' => FCPATH . 'assets/jasper/resources',
-            ],
-            'resources' => FCPATH . 'assets/jasper/resources', //place of resources
-            'db_connection' => [
-                'driver' => 'mysql', //mysql, postgres, oracle, generic (jdbc)
-                'username' => 'jasper',
-                'password' => 'dmRokon123',
-                'host' => 'localhost',
-                'database' => 'coffee',
-                'port' => '3306'
-            ]
+        $bc = [
+            ['link' => base_url(), 'page' => lang('home')],
+            ['link' => admin_url('reports'), 'page' => lang('reports')],
+            ['link' => '#', 'page' => lang('User Wise Collection')]
         ];
 
-        $this->PHPJasper->process(
-            $input,
-            $output,
-            $options
-        )->execute();
+        $meta = [
+            'page_title' => lang('User Wise Collection'),
+            'bc'         => $bc
+        ];
 
+        $this->data['products']   = [];
+        $this->data['customers']  = [];
+        $this->data['allStaff']   = $this->reports_model->getStaff();
+        $this->data['categories'] = $this->site->getAllCategories();
 
+        // -------------------------------------------------
+        // FILTERS
+        // -------------------------------------------------
 
-        $filename =  "assets/jasper/output/paymentSummeryReport.pdf";
+        $user_id = $this->input->post('customer')
+            ? $this->input->post('customer')
+            : null;
 
-        redirect($filename);
+        $start_date = $this->input->post('start_date')
+            ? $this->input->post('start_date')
+            : null;
+
+        $end_date = $this->input->post('end_date')
+            ? $this->input->post('end_date')
+            : null;
+
+        if ($start_date) {
+            $start_date = str_replace('/', '-', $start_date);
+            $start_date = date('Y-m-d', strtotime($start_date));
+        }
+
+        if ($end_date) {
+            $end_date = str_replace('/', '-', $end_date);
+            $end_date = date('Y-m-d', strtotime($end_date . ' +1 day'));
+        }
+
+        $today     = date('Y-m-d');
+        $today_end = date('Y-m-d', strtotime($today . ' +1 day'));
+
+        if (!$start_date || !$end_date) {
+            $start_date = $today;
+            $end_date   = $today_end;
+        }
+
+        // -------------------------------------------------
+        // USER WISE COLLECTION SUMMARY
+        // -------------------------------------------------
+
+        $sql = "    ";
+
+        $params = [$start_date, $end_date];
+
+        if ($user_id) {
+            $sql .= " AND u.id = ? ";
+            $params[] = $user_id;
+        }
+
+        $sql .= "
+     ";
+
+        $query = $this->db->query($sql, $params);
+
+        $records = [];
+
+        foreach ($query->result_array() as $row) {
+
+            $total_amount = (float) $row['total_amount'];
+            $paid         = (float) $row['paid'];
+            $cash         = (float) $row['cash'];
+
+            $row['other'] = $paid - $cash;
+
+            $row['balance'] = $total_amount - $paid;
+
+            $records[] = $row;
+        }
+
+        $this->data['records'] = $records;
+
+        // -------------------------------------------------
+        // GRAND TOTALS
+        // -------------------------------------------------
+
+        $this->data['totalInvoice'] = 0;
+        $this->data['totalAmount']  = 0;
+        $this->data['totalPaid']    = 0;
+        $this->data['totalCash']    = 0;
+        $this->data['totalBalance'] = 0;
+
+        foreach ($records as $row) {
+
+            $this->data['totalInvoice'] += (int) $row['total_invoice'];
+
+            $this->data['totalAmount'] += (float) $row['total_amount'];
+
+            $this->data['totalPaid'] += (float) $row['paid'];
+
+            $this->data['totalCash'] += (float) $row['cash'];
+
+            $this->data['totalBalance'] += (float) $row['balance'];
+        }
+
+        $this->page_construct(
+            'reports/userWiseCollection1',
+            $meta,
+            $this->data
+        );
     }
-
-
 
 
 
@@ -3418,156 +3979,764 @@ class Reports extends MY_Controller
     }
 
 
+
     public function itemstock()
     {
-        // $this->print_arrays($this->input->post());
 
-        // $this->sma->checkPermissions('customers');
-        $this->data['error'] = (validation_errors()) ? validation_errors() : $this->session->flashdata('error');
+        $this->data['error'] = (validation_errors())
+            ? validation_errors()
+            : $this->session->flashdata('error');
 
         $this->data['page_title'] = 'Stock Report';
 
-        $bc = [['link' => base_url(), 'page' => lang('home')], ['link' => admin_url('reports'), 'page' => lang('reports')], ['link' => '#', 'page' => $this->data['page_title']]];
-        $meta = ['page_title' => $this->data['page_title'], 'bc' => $bc];
+        $bc = [
+            ['link' => base_url(), 'page' => lang('home')],
+            ['link' => admin_url('reports'), 'page' => lang('reports')],
+            ['link' => '#', 'page' => $this->data['page_title']]
+        ];
 
+        $meta = [
+            'page_title' => $this->data['page_title'],
+            'bc' => $bc
+        ];
+
+        // Default data
         $this->data['products'] = [];
         $this->data['customers'] = [];
-        // $this->data['allcustomers'] = $this->reports_model->getCustomers();
         $this->data['allproducts'] = $this->products_model->getAllProducts();
         $this->data['categories'] = $this->site->getAllCategories();
-        // $this->data['customer_groups'] = $this->companies_model->getAllCustomerGroups();
-        // $this->data['price_groups'] = $this->companies_model->getAllPriceGroups();
 
-        $customer = $this->input->post('customer') ? $this->input->post('customer') : null;
-        $product = $this->input->post('product') ? $this->input->post('product') : null;
-        $customer_group = $this->input->post('customer_group') ? $this->input->post('customer_group') : null;
-        $category = $this->input->post('category') ? $this->input->post('category') : null;
-        $subcategory = $this->input->post('subcategory') ? $this->input->post('subcategory') : null;
-        $start_date = $this->input->post('start_date') ? $this->input->post('start_date') : null;
-        $end_date = $this->input->post('end_date') ? $this->input->post('end_date') : null;
+        $product    = $this->input->post('product') ?: null;
+        $category   = $this->input->post('category') ?: null;
+        $end_date   = trim($this->input->post('end_date')) ?: date('Y-m-d');
+        $stock_from = $this->input->post('stock_from');
+        $stock_to   = $this->input->post('stock_to');
 
-        $today = date("Y-m-d");
+        // Default report values
+        $this->data['records']       = [];
+        $this->data['date_range']    = '';
+        $this->data['purchasetotal'] = 0;
+        $this->data['saletotal']     = 0;
+        $this->data['adjusttotal']   = 0;
 
+        /*
+     * =========================================================
+     * DO NOT RUN REPORT QUERY WITHOUT DATE UPTO
+     * =========================================================
+     */
+        if ($this->input->post() && empty($end_date)) {
+
+            $this->data['error'] = 'Please select Date Upto.';
+
+            $this->page_construct(
+                'reports/itemstock',
+                $meta,
+                $this->data
+            );
+
+            return;
+        }
+
+        /*
+     * =========================================================
+     * RUN REPORT ONLY WHEN DATE UPTO IS PROVIDED
+     * =========================================================
+     */
         if ($this->input->post()) {
 
-            if ($end_date) {
-                $end_date = $this->input->post('end_date');
-                $end_date = str_replace('/', '-', $end_date);
-                $end_date = date("Y-m-d", strtotime($end_date));
+            // Convert date
+            $end_date = str_replace('/', '-', $end_date);
+            $end_date = date('Y-m-d', strtotime($end_date));
+
+            // --- Build WHERE conditions safely ---
+            $where  = ['sma_products.`is_active` = 1'];
+            $params = [];
+
+            if ($product) {
+
+                $where[] = 'sma_products.`id` = ?';
+                $params[] = $product;
             }
 
+            if ($category) {
 
-            if ($product && $category) {
-                $query = $this->db->query("SELECT a.product_id, sma_products.`code`, sma_products.`name`, sma_products.`cost`, sma_products.`category_id`, `sma_categories`.`name` category_name, SUM(a.purchase_qty) purchase, SUM(a.sales_qty) sale, SUM(a.adjust_qty) adjust FROM (  SELECT `product_id`, SUM(`quantity`) purchase_qty, 0 sales_qty, 0 adjust_qty FROM `sma_purchase_items` WHERE DATE(`date`) <= '$end_date' GROUP BY `product_id` UNION ALL SELECT `product_id`, 0 purchase_qty, SUM(`quantity`) sales_qty, 0 adjust_qty FROM `sma_sale_items` LEFT JOIN `sma_sales` ON `sma_sales`.`id` = `sma_sale_items`.`sale_id` WHERE DATE(`date`) <= '$end_date' GROUP BY `product_id` UNION ALL SELECT `product_id`, 0 purchase_qty, 0 sales_qty, SUM( CASE WHEN TYPE='addition' THEN `quantity` ELSE -1*`quantity` END ) adjust_qty FROM `sma_adjustment_items` LEFT JOIN `sma_adjustments` ON `sma_adjustments`.`id` = `sma_adjustment_items`.`adjustment_id` WHERE DATE(`date`) <= '$end_date' GROUP BY `product_id`) a LEFT JOIN sma_products ON a.product_id = sma_products.id LEFT JOIN `sma_categories` ON sma_categories.`id` = sma_products.`category_id`   WHERE sma_products.`id` = '$product' AND sma_products.`category_id` = '$category' and  sma_products.`is_active` = 1  GROUP BY a.product_id, sma_products.`name`");
-            } else if ($category) {
-                $query = $this->db->query("SELECT a.product_id, sma_products.`code`, sma_products.`name`, sma_products.`cost`, sma_products.`category_id`, `sma_categories`.`name` category_name, SUM(a.purchase_qty) purchase, SUM(a.sales_qty) sale, SUM(a.adjust_qty) adjust FROM (  SELECT `product_id`, SUM(`quantity`) purchase_qty, 0 sales_qty, 0 adjust_qty FROM `sma_purchase_items` WHERE DATE(`date`) <= '$end_date' GROUP BY `product_id` UNION ALL SELECT `product_id`, 0 purchase_qty, SUM(`quantity`) sales_qty, 0 adjust_qty FROM `sma_sale_items` LEFT JOIN `sma_sales` ON `sma_sales`.`id` = `sma_sale_items`.`sale_id` WHERE DATE(`date`) <= '$end_date' GROUP BY `product_id` UNION ALL SELECT `product_id`, 0 purchase_qty, 0 sales_qty, SUM( CASE WHEN TYPE='addition' THEN `quantity` ELSE -1*`quantity` END ) adjust_qty FROM `sma_adjustment_items` LEFT JOIN `sma_adjustments` ON `sma_adjustments`.`id` = `sma_adjustment_items`.`adjustment_id` WHERE DATE(`date`) <= '$end_date' GROUP BY `product_id`) a LEFT JOIN sma_products ON a.product_id = sma_products.id LEFT JOIN `sma_categories` ON sma_categories.`id` = sma_products.`category_id`   WHERE sma_products.`category_id` = '$category' and  sma_products.`is_active` = 1   GROUP BY a.product_id, sma_products.`name`");
-            } else if ($product) {
-                $query = $this->db->query("SELECT a.product_id, sma_products.`code`, sma_products.`name`, sma_products.`cost`, sma_products.`category_id`, `sma_categories`.`name` category_name, SUM(a.purchase_qty) purchase, SUM(a.sales_qty) sale, SUM(a.adjust_qty) adjust FROM (  SELECT `product_id`, SUM(`quantity`) purchase_qty, 0 sales_qty, 0 adjust_qty FROM `sma_purchase_items` WHERE DATE(`date`) <= '$end_date' GROUP BY `product_id` UNION ALL SELECT `product_id`, 0 purchase_qty, SUM(`quantity`) sales_qty, 0 adjust_qty FROM `sma_sale_items` LEFT JOIN `sma_sales` ON `sma_sales`.`id` = `sma_sale_items`.`sale_id` WHERE DATE(`date`) <= '$end_date' GROUP BY `product_id` UNION ALL SELECT `product_id`, 0 purchase_qty, 0 sales_qty, SUM( CASE WHEN TYPE='addition' THEN `quantity` ELSE -1*`quantity` END ) adjust_qty FROM `sma_adjustment_items` LEFT JOIN `sma_adjustments` ON `sma_adjustments`.`id` = `sma_adjustment_items`.`adjustment_id` WHERE DATE(`date`) <= '$end_date' GROUP BY `product_id`) a LEFT JOIN sma_products ON a.product_id = sma_products.id LEFT JOIN `sma_categories` ON sma_categories.`id` = sma_products.`category_id`   WHERE sma_products.`id` = '$product' and  sma_products.`is_active` = 1  GROUP BY a.product_id, sma_products.`name`");
-            } else {
-                $query = $this->db->query("SELECT a.product_id, sma_products.`code`, sma_products.`name`, sma_products.`cost`, sma_products.`category_id`, `sma_categories`.`name` category_name, SUM(a.purchase_qty) purchase, SUM(a.sales_qty) sale, SUM(a.adjust_qty) adjust FROM (  SELECT `product_id`, SUM(`quantity`) purchase_qty, 0 sales_qty, 0 adjust_qty FROM `sma_purchase_items` WHERE DATE(`date`) <= '$end_date' GROUP BY `product_id` UNION ALL SELECT `product_id`, 0 purchase_qty, SUM(`quantity`) sales_qty, 0 adjust_qty FROM `sma_sale_items` LEFT JOIN `sma_sales` ON `sma_sales`.`id` = `sma_sale_items`.`sale_id` WHERE DATE(`date`) <= '$end_date' GROUP BY `product_id` UNION ALL SELECT `product_id`, 0 purchase_qty, 0 sales_qty, SUM( CASE WHEN TYPE='addition' THEN `quantity` ELSE -1*`quantity` END ) adjust_qty FROM `sma_adjustment_items` LEFT JOIN `sma_adjustments` ON `sma_adjustments`.`id` = `sma_adjustment_items`.`adjustment_id` WHERE DATE(`date`) <= '$end_date' GROUP BY `product_id`) a LEFT JOIN sma_products ON a.product_id = sma_products.id LEFT JOIN `sma_categories` ON sma_categories.`id` = sma_products.`category_id`  where sma_products.`is_active` = 1   GROUP BY a.product_id, sma_products.`name`");
+                $where[] = 'sma_products.`category_id` = ?';
+                $params[] = $category;
             }
+
+            $where_sql = implode(' AND ', $where);
+
+            // --- Build HAVING for stock range ---
+            $having = [];
+
+            if ($stock_from !== '' && $stock_from !== null) {
+
+                $having[] = '(purchase - sale + adjust) >= ?';
+                $params[] = (int) $stock_from;
+            }
+
+            if ($stock_to !== '' && $stock_to !== null) {
+
+                $having[] = '(purchase - sale + adjust) <= ?';
+                $params[] = (int) $stock_to;
+            }
+
+            $having_sql = $having
+                ? 'HAVING ' . implode(' AND ', $having)
+                : '';
+
+            // Date parameters
+            $date_params = [
+                $end_date,
+                $end_date,
+                $end_date
+            ];
+
+            $sql = "SELECT
+                    a.product_id,
+                    sma_products.`code`,
+                    sma_products.`name`,
+                    sma_products.`cost`,
+                    sma_products.`category_id`,
+                    `sma_categories`.`name` category_name,
+                    SUM(a.purchase_qty) purchase,
+                    SUM(a.sales_qty) sale,
+                    SUM(a.adjust_qty) adjust
+
+                FROM (
+
+                    SELECT
+                        `product_id`,
+                        SUM(`quantity`) purchase_qty,
+                        0 sales_qty,
+                        0 adjust_qty
+
+                    FROM `sma_purchase_items`
+
+                    WHERE DATE(`date`) <= ?
+
+                    GROUP BY `product_id`
+
+
+                    UNION ALL
+
+
+                    SELECT
+                        `product_id`,
+                        0 purchase_qty,
+                        SUM(`quantity`) sales_qty,
+                        0 adjust_qty
+
+                    FROM `sma_sale_items`
+
+                    LEFT JOIN `sma_sales`
+                        ON `sma_sales`.`id` = `sma_sale_items`.`sale_id`
+
+                    WHERE DATE(`date`) <= ?
+
+                    GROUP BY `product_id`
+
+
+                    UNION ALL
+
+
+                    SELECT
+                        `product_id`,
+                        0 purchase_qty,
+                        0 sales_qty,
+                        SUM(
+                            CASE
+                                WHEN TYPE = 'addition'
+                                THEN `quantity`
+                                ELSE -1 * `quantity`
+                            END
+                        ) adjust_qty
+
+                    FROM `sma_adjustment_items`
+
+                    LEFT JOIN `sma_adjustments`
+                        ON `sma_adjustments`.`id`
+                        = `sma_adjustment_items`.`adjustment_id`
+
+                    WHERE DATE(`date`) <= ?
+
+                    GROUP BY `product_id`
+
+                ) a
+
+                LEFT JOIN sma_products
+                    ON a.product_id = sma_products.id
+
+                LEFT JOIN `sma_categories`
+                    ON sma_categories.`id`
+                    = sma_products.`category_id`
+
+                WHERE {$where_sql}
+
+                GROUP BY
+                    a.product_id,
+                    sma_products.`name`
+
+                {$having_sql}";
+
+            // =====================================================
+            // SQL QUERY IS EXECUTED ONLY HERE
+            // AND ONLY WHEN end_date EXISTS
+            // =====================================================
+
+            $query = $this->db->query(
+                $sql,
+                array_merge($date_params, $params)
+            );
 
             $this->data['records'] = $query->result_array();
-            //    $this->print_arrays($this->db->last_query());
-            //  $this->print_arrays($this->data['records']);
-            $this->data['date_range'] = $end_date;
-            $this->data['purchasetotal'] = array_sum(array_column($this->data['records'], 'purchase'));
-            $this->data['saletotal'] = array_sum(array_column($this->data['records'], 'sale'));
-            $this->data['adjusttotal'] = array_sum(array_column($this->data['records'], 'adjust'));
 
-            //   $this->print_arrays($this->db->last_query());
-            //  $this->print_arrays($this->data);
+            $this->data['date_range'] = $end_date;
+
+            $this->data['purchasetotal'] = array_sum(
+                array_column(
+                    $this->data['records'],
+                    'purchase'
+                )
+            );
+
+            $this->data['saletotal'] = array_sum(
+                array_column(
+                    $this->data['records'],
+                    'sale'
+                )
+            );
+
+            $this->data['adjusttotal'] = array_sum(
+                array_column(
+                    $this->data['records'],
+                    'adjust'
+                )
+            );
         }
-        $this->page_construct('reports/itemstock', $meta, $this->data);
+
+        $this->page_construct(
+            'reports/itemstock',
+            $meta,
+            $this->data
+        );
     }
+
 
 
 
 
     public function purchaseslist()
     {
-        //  $this->print_arrays($this->input->post());
-
         $this->sma->checkPermissions('customers');
-        $this->data['error'] = (validation_errors()) ? validation_errors() : $this->session->flashdata('error');
-
+        $this->data['error'] =  (validation_errors())  ? validation_errors() : $this->session->flashdata('error');
         $this->data['page_title'] = 'Purchase Report';
-
-        $bc = [['link' => base_url(), 'page' => lang('home')], ['link' => admin_url('reports'), 'page' => lang('reports')], ['link' => '#', 'page' => $this->data['page_title']]];
-        $meta = ['page_title' => $this->data['page_title'], 'bc' => $bc];
+        $bc = [
+            ['link' => base_url(), 'page' => lang('home')],
+            ['link' => admin_url('reports'), 'page' => lang('reports')],
+            ['link' => '#', 'page' => $this->data['page_title']]
+        ];
+        $meta = [
+            'page_title' => $this->data['page_title'],
+            'bc' => $bc
+        ];
 
         $this->data['products'] = [];
         $this->data['customers'] = [];
-        // $this->data['allcustomers'] = $this->reports_model->getCustomers();
-        $this->data['allproducts'] = $this->products_model->getAllProducts();
-        $this->data['categories'] = $this->site->getAllCategories();
-        // $this->data['customer_groups'] = $this->companies_model->getAllCustomerGroups();
-        // $this->data['price_groups'] = $this->companies_model->getAllPriceGroups();
-
-        $customer = $this->input->post('customer') ? $this->input->post('customer') : null;
-        $item_id = $this->input->post('item_id') ? $this->input->post('item_id') : null;
-        $item_name = $this->input->post('item_name') ? $this->input->post('item_name') : null;
-        $customer_group = $this->input->post('customer_group') ? $this->input->post('customer_group') : null;
-        $category = $this->input->post('category') ? $this->input->post('category') : null;
-        $subcategory = $this->input->post('subcategory') ? $this->input->post('subcategory') : null;
-        $start_date = $this->input->post('start_date') ? $this->input->post('start_date') : date("Y-m-d");
-        $end_date = $this->input->post('end_date') ? $this->input->post('end_date') : date("Y-m-d");
-
-
-        if ($start_date) {
-            $start_date = $this->input->post('start_date');
-            $start_date = str_replace('/', '-', $start_date);
-            $start_date = date("Y-m-d", strtotime($start_date));
-        }
-        if ($end_date) {
-            $end_date = $this->input->post('end_date');
-            $end_date = str_replace('/', '-', $end_date);
-            $end_date = date("Y-m-d", strtotime($end_date));
-        }
-
-        // $this->print_arrays($this->input->post());
-
-
-        $today = date("Y-m-d");
-        $first_day_month = date("Y-m-01", strtotime($today));
-        $this->db
-            ->select("`sma_purchases`.`id` purchase_id,`reference_no`,`sma_purchases`.`date` datetime,`supplier_id`,`supplier`,`grand_total`,`sma_purchases`.`status`,`created_by`,sma_users.`username`, `product_id`,`product_name`,`net_unit_cost`,`quantity`,`sma_purchase_items`.`warehouse_id`,`expiry`,`subtotal`,`quantity_balance`,`sma_purchase_items`.`date`,`sma_purchase_items`.`status`,`unit_cost`,`real_unit_cost`,`quantity_received`,`product_unit_code`,`base_unit_cost` ", false)
-            ->from('sma_purchases')
-            ->join('sma_purchase_items', '`sma_purchase_items`.`purchase_id` = `sma_purchases`.`id`', 'left')
-            ->join('sma_users', '`sma_users`.`id` = `sma_purchases`.`created_by`', 'left')
-            ->order_by('`sma_purchases`.`date`');
-
-
-        if ($item_id) {
-            $this->db->where('sma_purchase_items.`product_id`', $item_id);
-        }
-        if ($item_name) {
-            $this->db->like('sma_purchase_items.`product_name`', $item_name, 'both');
-        }
-        if ($start_date && $end_date) {
-            $this->db->where('`sma_purchases`.`date` BETWEEN "' . $start_date . '" and "' . date("Y-m-d", strtotime($end_date . ' +1 day')) . '"');
-            $this->data['date_range'] = $start_date . ' to ' . $end_date;
-        } else if ($end_date) {
-            $this->db->where('`sma_purchases`.`date` BETWEEN "' . $start_date . '" and "' . date("Y-m-d", strtotime($end_date . ' +1 day')) . '"');
-            $this->data['date_range'] = $start_date . ' to ' . $end_date;
-        }
-        $query = $this->db->get();
-        $this->data['records'] = $query->result_array();
-
-        // $this->print_arrays($this->db->last_query());
-
-        // $this->print_arrays($this->data['records']);
-
-        $this->data['subtotal'] = array_sum(array_column($this->data['records'], 'subtotal'));
-        $this->data['quantity'] = array_sum(array_column($this->data['records'], 'quantity'));
-
-
-        //  $this->print_arrays($this->db->last_query());
-
+        $this->data['allproducts'] =  $this->products_model->getAllProducts();
+        $this->data['categories'] =   $this->site->getAllCategories();
         $this->page_construct('reports/purchaseslist', $meta, $this->data);
     }
 
+    public function purchaseslist_export_excel()
+    {
+        $item_id    = trim($this->input->post('item_id'));
+        $item_name  = trim($this->input->post('item_name'));
+        $start_date = trim($this->input->post('start_date'));
+        $end_date   = trim($this->input->post('end_date'));
 
+
+        // Date conversion
+        if ($start_date !== '') {
+
+            $start_date = str_replace('/', '-', $start_date);
+
+            $start_date = date(
+                'Y-m-d',
+                strtotime($start_date)
+            );
+        }
+
+        if ($end_date !== '') {
+
+            $end_date = str_replace('/', '-', $end_date);
+
+            $end_date = date(
+                'Y-m-d',
+                strtotime($end_date)
+            );
+        }
+
+
+        // ---------------------------------------------------------
+        // Query
+        // ---------------------------------------------------------
+
+        $this->db
+            ->select("
+            p.id AS purchase_id,
+            p.reference_no,
+            p.date AS datetime,
+            p.supplier,
+
+            pi.product_id,
+            pi.product_name,
+            pi.quantity,
+            pi.net_unit_cost,
+            pi.subtotal,
+            pi.quantity_balance,
+            pi.expiry,
+
+            u.username
+        ", false)
+
+            ->from('sma_purchases p')
+
+            ->join(
+                'sma_purchase_items pi',
+                'pi.purchase_id = p.id',
+                'left'
+            )
+
+            ->join(
+                'sma_users u',
+                'u.id = p.created_by',
+                'left'
+            );
+
+
+        // ---------------------------------------------------------
+        // Date
+        // ---------------------------------------------------------
+
+        if ($start_date !== '') {
+
+            $this->db->where(
+                'p.date >=',
+                $start_date
+            );
+        }
+
+        if ($end_date !== '') {
+
+            $next_date = date(
+                'Y-m-d',
+                strtotime($end_date . ' +1 day')
+            );
+
+            $this->db->where(
+                'p.date <',
+                $next_date
+            );
+        }
+
+
+        // ---------------------------------------------------------
+        // Product ID
+        // ---------------------------------------------------------
+
+        if ($item_id !== '') {
+
+            $this->db->where(
+                'pi.product_id',
+                $item_id
+            );
+        }
+
+
+        // ---------------------------------------------------------
+        // Product Name
+        // ---------------------------------------------------------
+
+        if ($item_name !== '') {
+
+            $this->db->like(
+                'pi.product_name',
+                $item_name
+            );
+        }
+
+
+        $this->db
+            ->order_by('p.date', 'DESC')
+            ->order_by('p.id', 'DESC');
+
+
+        $query = $this->db->get();
+
+
+        // ---------------------------------------------------------
+        // CSV is MUCH better for large exports
+        // ---------------------------------------------------------
+
+        $filename =
+            'Purchase_Report_' .
+            date('Y-m-d_H-i-s') .
+            '.csv';
+
+
+        header('Content-Type: text/csv; charset=utf-8');
+
+        header(
+            'Content-Disposition: attachment; filename="' .
+                $filename .
+                '"'
+        );
+
+        header('Pragma: no-cache');
+
+        header('Expires: 0');
+
+
+        $output = fopen('php://output', 'w');
+
+
+        // Header
+        fputcsv($output, [
+            'Purchase ID',
+            'Reference No',
+            'Date',
+            'Supplier',
+            'Product ID',
+            'Product',
+            'Quantity',
+            'Unit Cost',
+            'Subtotal',
+            'Qty Balance',
+            'Expiry',
+            'Created By'
+        ]);
+
+
+        // Data
+        foreach ($query->result_array() as $row) {
+
+            fputcsv($output, [
+
+                $row['purchase_id'],
+
+                $row['reference_no'],
+
+                $row['datetime'],
+
+                $row['supplier'],
+
+                $row['product_id'],
+
+                $row['product_name'],
+
+                $row['quantity'],
+
+                $row['net_unit_cost'],
+
+                $row['subtotal'],
+
+                $row['quantity_balance'],
+
+                $row['expiry'],
+
+                $row['username']
+
+            ]);
+        }
+
+
+        fclose($output);
+
+        exit;
+    }
+
+
+
+
+    public function purchaseslist_ajax()
+    {
+        $draw   = (int) $this->input->post('draw');
+        $start  = (int) $this->input->post('start');
+        $length = (int) $this->input->post('length');
+
+        if ($length <= 0) {
+            $length = 25;
+        }
+
+        if ($length > 250) {
+            $length = 250;
+        }
+
+        // ---------------------------------------------------------
+        // Filters
+        // ---------------------------------------------------------
+
+        $item_id    = trim($this->input->post('item_id'));
+        $item_name  = trim($this->input->post('item_name'));
+        $start_date = trim($this->input->post('start_date'));
+        $end_date   = trim($this->input->post('end_date'));
+
+        if ($start_date === '') {
+            $start_date = date('Y-m-d');
+        }
+
+        if ($end_date === '') {
+            $end_date = date('Y-m-d');
+        }
+
+
+        // ---------------------------------------------------------
+        // Date conversion
+        // ---------------------------------------------------------
+
+        if ($start_date !== '') {
+
+            $start_date = str_replace('/', '-', $start_date);
+
+            $start_date = date(
+                'Y-m-d',
+                strtotime($start_date)
+            );
+        }
+
+        if ($end_date !== '') {
+
+            $end_date = str_replace('/', '-', $end_date);
+
+            $end_date = date(
+                'Y-m-d',
+                strtotime($end_date)
+            );
+        }
+
+
+        // ---------------------------------------------------------
+        // Base query
+        // ---------------------------------------------------------
+
+        $this->db
+            ->from('sma_purchases p')
+            ->join(
+                'sma_purchase_items pi',
+                'pi.purchase_id = p.id',
+                'left'
+            )
+            ->join(
+                'sma_users u',
+                'u.id = p.created_by',
+                'left'
+            );
+
+
+        // ---------------------------------------------------------
+        // Date filter
+        // ---------------------------------------------------------
+
+        if ($start_date !== '') {
+
+            $this->db->where(
+                'p.date >=',
+                $start_date
+            );
+        }
+
+        if ($end_date !== '') {
+
+            $next_date = date(
+                'Y-m-d',
+                strtotime($end_date . ' +1 day')
+            );
+
+            $this->db->where(
+                'p.date <',
+                $next_date
+            );
+        }
+
+
+        // ---------------------------------------------------------
+        // Product ID
+        // ---------------------------------------------------------
+
+        if ($item_id !== '') {
+
+            $this->db->where(
+                'pi.product_id',
+                $item_id
+            );
+        }
+
+
+        // ---------------------------------------------------------
+        // Product name
+        // ---------------------------------------------------------
+
+        if ($item_name !== '') {
+
+            $this->db->like(
+                'pi.product_name',
+                $item_name
+            );
+        }
+
+
+        // =========================================================
+        // FILTERED COUNT
+        // =========================================================
+
+        $count_db = clone $this->db;
+
+        $records_filtered = $count_db
+            ->count_all_results();
+
+
+        // =========================================================
+        // DATA
+        // =========================================================
+
+        $this->db
+            ->select("
+            p.id AS purchase_id,
+            p.reference_no,
+            p.date AS datetime,
+            p.supplier_id,
+            p.supplier,
+            p.grand_total,
+            p.status AS purchase_status,
+            p.created_by,
+            u.username,
+
+            pi.product_id,
+            pi.product_name,
+            pi.net_unit_cost,
+            pi.quantity,
+            pi.warehouse_id,
+            pi.expiry,
+            pi.subtotal,
+            pi.quantity_balance,
+            pi.date AS item_date,
+            pi.status AS item_status,
+            pi.unit_cost,
+            pi.real_unit_cost,
+            pi.quantity_received,
+            pi.product_unit_code,
+            pi.base_unit_cost
+        ", false);
+
+
+        // ---------------------------------------------------------
+        // Sort
+        // ---------------------------------------------------------
+
+        $this->db
+            ->order_by('p.date', 'DESC')
+            ->order_by('p.id', 'DESC');
+
+
+        // ---------------------------------------------------------
+        // Pagination
+        // ---------------------------------------------------------
+
+        $this->db->limit(
+            $length,
+            $start
+        );
+
+
+        // ---------------------------------------------------------
+        // Execute
+        // ---------------------------------------------------------
+
+        $query = $this->db->get();
+
+        $rows = $query->result_array();
+
+
+        // =========================================================
+        // DATATABLE DATA
+        // =========================================================
+
+        $data = [];
+
+        foreach ($rows as $row) {
+
+            $data[] = [
+
+                // Purchase ID
+                html_escape($row['purchase_id']),
+
+                // Reference
+                '<a href="' .
+                    admin_url('purchases/modal_view/' . $row['purchase_id']) .
+                    '" data-toggle="modal" data-target="#myModal">' .
+                    html_escape($row['reference_no']) .
+                    '</a>',
+
+                html_escape($row['datetime']),
+
+                html_escape($row['supplier']),
+
+                html_escape($row['product_name']),
+
+                number_format(
+                    (float) $row['quantity'],
+                    2
+                ),
+
+                number_format(
+                    (float) $row['net_unit_cost'],
+                    2
+                ),
+
+                number_format(
+                    (float) $row['subtotal'],
+                    2
+                ),
+
+                number_format(
+                    (float) $row['quantity_balance'],
+                    2
+                ),
+
+                !empty($row['expiry'])
+                    ? html_escape($row['expiry'])
+                    : '-',
+
+                html_escape($row['username'])
+
+            ];
+        }
+
+
+        // =========================================================
+        // RESPONSE
+        // =========================================================
+
+        $response = [
+
+            'draw' => $draw,
+
+            'recordsTotal' => $records_filtered,
+
+            'recordsFiltered' => $records_filtered,
+
+            'data' => $data
+
+        ];
+
+
+        $this->output
+            ->set_content_type('application/json')
+            ->set_output(
+                json_encode($response)
+            );
+    }
 
 
     public function saleslist()
@@ -3582,105 +4751,519 @@ class Reports extends MY_Controller
             ['link' => '#', 'page' => $this->data['page_title']]
         ];
 
-        $meta = ['page_title' => $this->data['page_title'], 'bc' => $bc];
+        $meta = [
+            'page_title' => $this->data['page_title'],
+            'bc'         => $bc
+        ];
+
+        $this->data['products'] = [];
+        $this->data['customers'] = [];
+        $this->data['allproducts'] = $this->products_model->getAllProducts();
+        $this->data['categories'] = $this->site->getAllCategories();
+        $this->data['allStaff']      = $this->reports_model->getStaff();
 
         $this->page_construct('reports/saleslist', $meta, $this->data);
     }
 
 
-    public function getSalesList()
+    public function saleslist_ajax()
     {
         $this->sma->checkPermissions('customers');
 
-        $draw   = intval($this->input->get("draw"));
-        $start  = intval($this->input->get("start"));
-        $length = intval($this->input->get("length"));
-        $search = $this->input->get("search")['value'];
+        $draw   = (int) $this->input->post('draw');
+        $start  = (int) $this->input->post('start');
+        $length = (int) $this->input->post('length');
 
-        $item_id   = $this->input->get('item_id');
-        $item_name = $this->input->get('item_name');
-        $start_date = $this->input->get('start_date') ? $this->input->get('start_date') : date("Y-m-d");
-        $end_date   = $this->input->get('end_date') ? $this->input->get('end_date') : date("Y-m-d");
+        $search = $this->input->post('search');
+        $search = isset($search['value']) ? trim($search['value']) : '';
 
-        // Format date
-        if ($start_date) {
-            $start_date = date("Y-m-d", strtotime(str_replace('/', '-', $start_date)));
-        }
-        if ($end_date) {
-            $end_date = date("Y-m-d", strtotime(str_replace('/', '-', $end_date)));
-        }
+        $item_id   = trim($this->input->post('item_id'));
+        $item_name = trim($this->input->post('item_name'));
+        $user_id   = trim($this->input->post('user'));
 
-        $this->db->from('sma_sales');
-        $this->db->join('sma_sale_items', 'sma_sale_items.sale_id = sma_sales.id', 'left');
-        $this->db->join('sma_users', 'sma_users.id = sma_sales.created_by', 'left');
+        $start_date = trim($this->input->post('start_date'));
+        $end_date   = trim($this->input->post('end_date'));
 
-        // Filters
-        if ($item_id) {
-            $this->db->where('sma_sale_items.product_id', $item_id);
+        // ---------------------------------------------------------
+        // DEFAULT DATES
+        // ---------------------------------------------------------
+
+        if ($start_date === '') {
+            $start_date = date('Y-m-d');
         }
 
-        if ($item_name) {
-            $this->db->like('sma_sale_items.product_name', $item_name);
+        if ($end_date === '') {
+            $end_date = date('Y-m-d');
         }
 
-        if ($start_date && $end_date) {
-            $this->db->where("DATE(sma_sales.date) >=", $start_date);
-            $this->db->where("DATE(sma_sales.date) <=", $end_date);
+        // ---------------------------------------------------------
+        // DATE FORMAT
+        // ---------------------------------------------------------
+
+        if ($start_date !== '') {
+            $start_date = date(
+                'Y-m-d',
+                strtotime(str_replace('/', '-', $start_date))
+            );
         }
 
-        if (!empty($search)) {
-            $this->db->group_start()
-                ->like('sma_sales.reference_no', $search)
-                ->or_like('sma_sales.customer', $search)
-                ->or_like('sma_sale_items.product_name', $search)
-                ->group_end();
+        if ($end_date !== '') {
+            $end_date = date(
+                'Y-m-d',
+                strtotime(str_replace('/', '-', $end_date))
+            );
         }
 
-        // Count filtered
-        $totalFiltered = $this->db->count_all_results('', false);
+        // ---------------------------------------------------------
+        // BASE QUERY
+        // ---------------------------------------------------------
 
-        // Select fields
+        $this->db
+            ->from('sma_sales')
+            ->join(
+                'sma_sale_items',
+                'sma_sale_items.sale_id = sma_sales.id',
+                'left'
+            )
+            ->join(
+                'sma_users',
+                'sma_users.id = sma_sales.created_by',
+                'left'
+            );
+
+        // ---------------------------------------------------------
+        // FILTERS
+        // ---------------------------------------------------------
+
+        if ($item_id !== '') {
+            $this->db->where(
+                'sma_sale_items.product_id',
+                $item_id
+            );
+        }
+
+        if ($item_name !== '') {
+            $this->db->like(
+                'sma_sale_items.product_name',
+                $item_name
+            );
+        }
+
+        if ($user_id !== '') {
+            $this->db->where(
+                'sma_sales.created_by',
+                $user_id
+            );
+        }
+
+        if ($start_date !== '' && $end_date !== '') {
+
+            $this->db->where(
+                'sma_sales.date >=',
+                $start_date . ' 00:00:00'
+            );
+
+            $this->db->where(
+                'sma_sales.date <',
+                date(
+                    'Y-m-d',
+                    strtotime($end_date . ' +1 day')
+                ) . ' 00:00:00'
+            );
+        }
+
+        // ---------------------------------------------------------
+        // DATATABLE SEARCH
+        // ---------------------------------------------------------
+
+        if ($search !== '') {
+
+            $this->db->group_start();
+
+            $this->db
+                ->like(
+                    'sma_sales.reference_no',
+                    $search
+                )
+                ->or_like(
+                    'sma_sales.customer',
+                    $search
+                )
+                ->or_like(
+                    'sma_sale_items.product_name',
+                    $search
+                )
+                ->or_like(
+                    'sma_users.username',
+                    $search
+                );
+
+            $this->db->group_end();
+        }
+
+        // ---------------------------------------------------------
+        // FILTERED RECORD COUNT
+        // ---------------------------------------------------------
+
+        $count_db = clone $this->db;
+
+        $totalFiltered = $count_db->count_all_results();
+
+        // ---------------------------------------------------------
+        // GRAND TOTAL
+        //
+        // This is the total of ALL filtered rows,
+        // not only the current DataTable page.
+        // ---------------------------------------------------------
+
+        $total_db = clone $this->db;
+
+        $total_db->select_sum(
+            'sma_sale_items.subtotal',
+            'grand_total'
+        );
+
+        $total_query = $total_db->get();
+
+        $grand_total = 0;
+
+        if ($total_query->num_rows() > 0) {
+            $grand_total = (float) $total_query->row()->grand_total;
+        }
+
+        // ---------------------------------------------------------
+        // DATA
+        // ---------------------------------------------------------
+
         $this->db->select("
         sma_sales.id AS sale_id,
-        sma_sales.date,
         sma_sales.reference_no,
+        sma_sales.date,
         sma_sales.customer,
-        sma_users.username,
         sma_sale_items.product_name,
         sma_sale_items.quantity,
-        sma_sale_items.unit_price AS unit_cost,
-        sma_sale_items.subtotal
-    ");
+        sma_sale_items.unit_price,
+        sma_sale_items.subtotal,
+        sma_users.username
+     ");
 
-        // Pagination
+        $this->db->order_by(
+            'sma_sales.date',
+            'DESC'
+        );
+
         if ($length != -1) {
-            $this->db->limit($length, $start);
+            $this->db->limit(
+                $length,
+                $start
+            );
         }
 
         $query = $this->db->get();
+
         $data = [];
 
         foreach ($query->result() as $row) {
+
             $data[] = [
-                $row->date,
-                '<a href="' . admin_url('sales/modal_view/' . $row->sale_id) . '" data-toggle="modal">' . $row->reference_no . '</a>',
-                $row->customer,
-                $row->product_name,
-                number_format($row->unit_cost, 2),
-                intval($row->quantity),
-                number_format($row->subtotal, 2),
-                $row->username
+
+                // Sale ID
+                $row->sale_id,
+
+                // Reference No
+                '<a href="' .
+                    admin_url('pos/view/' . $row->sale_id . '/1') .
+                    '" data-toggle="modal" data-target="#myModal">' .
+                    htmlspecialchars($row->reference_no) .
+                    '</a>',
+
+                // Date
+                htmlspecialchars($row->date),
+
+                // Customer
+                htmlspecialchars($row->customer),
+
+                // Product
+                htmlspecialchars($row->product_name),
+
+                // Quantity
+                number_format(
+                    (float) $row->quantity,
+                    2
+                ),
+
+                // Unit Cost
+                number_format(
+                    (float) $row->unit_price,
+                    2
+                ),
+
+                // Subtotal
+                number_format(
+                    (float) $row->subtotal,
+                    2
+                ),
+
+                // Created By
+                htmlspecialchars(
+                    !empty($row->username)
+                        ? $row->username
+                        : '-'
+                )
             ];
         }
 
-        // Total records (without filter)
-        $totalRecords = $this->db->from('sma_sales')->count_all_results();
+        // ---------------------------------------------------------
+        // TOTAL RECORDS
+        // ---------------------------------------------------------
 
-        echo json_encode([
-            "draw" => $draw,
-            "recordsTotal" => $totalRecords,
-            "recordsFiltered" => $totalFiltered,
-            "data" => $data
+        $totalRecords = $this->db
+            ->from('sma_sales')
+            ->count_all_results();
+
+        // ---------------------------------------------------------
+        // RESPONSE
+        // ---------------------------------------------------------
+
+        $response = [
+            'draw'            => $draw,
+            'recordsTotal'    => $totalRecords,
+            'recordsFiltered' => $totalFiltered,
+            'grand_total'     => $grand_total,
+            'data'            => $data
+        ];
+
+        $this->output
+            ->set_content_type('application/json')
+            ->set_output(
+                json_encode($response)
+            );
+    }
+
+
+    public function saleslist_export_excel()
+    {
+        $this->sma->checkPermissions('customers');
+
+        $item_id    = trim($this->input->post('item_id'));
+        $item_name  = trim($this->input->post('item_name'));
+        $user_id    = trim($this->input->post('user'));
+        $start_date = trim($this->input->post('start_date'));
+        $end_date   = trim($this->input->post('end_date'));
+
+        // ---------------------------------------------------------
+        // DEFAULT DATES
+        // ---------------------------------------------------------
+
+        if ($start_date === '') {
+            $start_date = date('Y-m-d');
+        }
+
+        if ($end_date === '') {
+            $end_date = date('Y-m-d');
+        }
+
+        // ---------------------------------------------------------
+        // DATE FORMAT
+        // ---------------------------------------------------------
+
+        if ($start_date !== '') {
+            $start_date = date(
+                'Y-m-d',
+                strtotime(str_replace('/', '-', $start_date))
+            );
+        }
+
+        if ($end_date !== '') {
+            $end_date = date(
+                'Y-m-d',
+                strtotime(str_replace('/', '-', $end_date))
+            );
+        }
+
+        // ---------------------------------------------------------
+        // QUERY
+        // ---------------------------------------------------------
+
+        $this->db
+            ->select("
+            sma_sales.id AS sale_id,
+            sma_sales.reference_no,
+            sma_sales.date,
+            sma_sales.customer,
+            sma_sale_items.product_name,
+            sma_sale_items.quantity,
+            sma_sale_items.unit_price,
+            sma_sale_items.subtotal,
+            sma_users.username
+        ")
+            ->from('sma_sales')
+            ->join(
+                'sma_sale_items',
+                'sma_sale_items.sale_id = sma_sales.id',
+                'left'
+            )
+            ->join(
+                'sma_users',
+                'sma_users.id = sma_sales.created_by',
+                'left'
+            );
+
+        // ---------------------------------------------------------
+        // FILTERS
+        // ---------------------------------------------------------
+
+        if ($item_id !== '') {
+            $this->db->where(
+                'sma_sale_items.product_id',
+                $item_id
+            );
+        }
+
+        if ($item_name !== '') {
+            $this->db->like(
+                'sma_sale_items.product_name',
+                $item_name
+            );
+        }
+
+        if ($user_id !== '') {
+            $this->db->where(
+                'sma_sales.created_by',
+                $user_id
+            );
+        }
+
+        if ($start_date !== '' && $end_date !== '') {
+
+            $this->db->where(
+                'sma_sales.date >=',
+                $start_date . ' 00:00:00'
+            );
+
+            $this->db->where(
+                'sma_sales.date <',
+                date(
+                    'Y-m-d',
+                    strtotime($end_date . ' +1 day')
+                ) . ' 00:00:00'
+            );
+        }
+
+        // ---------------------------------------------------------
+        // ORDER
+        // ---------------------------------------------------------
+
+        $this->db->order_by(
+            'sma_sales.date',
+            'DESC'
+        );
+
+        $query = $this->db->get();
+
+        // ---------------------------------------------------------
+        // CSV FILE
+        // ---------------------------------------------------------
+
+        $filename =
+            'sales_report_' .
+            date('Y-m-d_H-i-s') .
+            '.csv';
+
+        header(
+            'Content-Type: text/csv; charset=utf-8'
+        );
+
+        header(
+            'Content-Disposition: attachment; filename="' .
+                $filename .
+                '"'
+        );
+
+        $output = fopen(
+            'php://output',
+            'w'
+        );
+
+        // ---------------------------------------------------------
+        // UTF-8 BOM
+        // ---------------------------------------------------------
+
+        fprintf(
+            $output,
+            chr(0xEF) .
+                chr(0xBB) .
+                chr(0xBF)
+        );
+
+        // ---------------------------------------------------------
+        // HEADER
+        // ---------------------------------------------------------
+
+        fputcsv($output, [
+            'Sale ID',
+            'Reference No',
+            'Date',
+            'Customer',
+            'Product',
+            'Quantity',
+            'Unit Price',
+            'Subtotal',
+            'Created By'
         ]);
+
+        // ---------------------------------------------------------
+        // DATA + GRAND TOTAL
+        // ---------------------------------------------------------
+
+        $grand_total = 0;
+
+        foreach ($query->result() as $row) {
+
+            $subtotal = (float) $row->subtotal;
+
+            $grand_total += $subtotal;
+
+            fputcsv($output, [
+                $row->sale_id,
+                $row->reference_no,
+                $row->date,
+                $row->customer,
+                $row->product_name,
+                $row->quantity,
+                $row->unit_price,
+                $row->subtotal,
+                $row->username
+            ]);
+        }
+
+        // ---------------------------------------------------------
+        // GRAND TOTAL ROW
+        // ---------------------------------------------------------
+
+        fputcsv($output, [
+            '',
+            '',
+            '',
+            '',
+            '',
+            '',
+            'Grand Total:',
+            number_format(
+                $grand_total,
+                2,
+                '.',
+                ''
+            ),
+            ''
+        ]);
+
+        // ---------------------------------------------------------
+        // CLOSE
+        // ---------------------------------------------------------
+
+        fclose($output);
+
+        exit;
     }
 }

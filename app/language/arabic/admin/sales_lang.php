@@ -140,6 +140,10 @@ $lang['sale_x_action']                     = 'This action can not be performed f
 $lang['sale_already_returned']             = 'Sale already have return record';
 $lang['sale_is_returned']                  = 'Sale has return record';
 $lang['payment_was_returned']              = 'Payment has been returned';
+$lang['return_quantity_exceeds_original'] = 'كمية المرتجع تتجاوز الكمية المتاحة المتبقية لهذا الصنف.';
+$lang['return_amount_exceeds_balance']   = 'مبلغ المرتجع يتجاوز رصيد البيع المتبقي.';
+$lang['refund_amount_exceeds_paid']      = 'مبلغ الاسترداد يتجاوز المبلغ المدفوع المتبقي لهذا البيع.';
+
 $lang['packing']                           = 'Packing';
 $lang['delivering']                        = 'Delivering';
 $lang['delivered']                         = 'Delivered';

@@ -330,8 +330,14 @@ class Sales extends MY_Controller
                     $ri       = $this->Settings->item_addition ? $row->id : $c;
 
                     $pr[$ri] = [
-                        'id' => $c, 'item_id' => $row->id, 'label' => $row->name . ' (' . $row->code . ')',
-                        'row'        => $row, 'combo_items' => $combo_items, 'tax_rate' => $tax_rate, 'units' => $units, 'options' => $options,
+                        'id' => $c,
+                        'item_id' => $row->id,
+                        'label' => $row->name . ' (' . $row->code . ')',
+                        'row'        => $row,
+                        'combo_items' => $combo_items,
+                        'tax_rate' => $tax_rate,
+                        'units' => $units,
+                        'options' => $options,
                     ];
                     $c++;
                 }
@@ -600,8 +606,10 @@ class Sales extends MY_Controller
             $this->data['warehouse']   = $this->site->getWarehouseByID($inv->warehouse_id);
             $this->data['inv']         = $inv;
             $this->data['rows']        = $this->sales_model->getAllInvoiceItems($id);
-            $this->data['return_sale'] = $inv->return_id ? $this->sales_model->getInvoiceByID($inv->return_id) : null;
-            $this->data['return_rows'] = $inv->return_id ? $this->sales_model->getAllInvoiceItems($inv->return_id) : null;
+            $return_ids    = $this->site->getReturnSaleIds($inv);
+            $last_return_id = $return_ids ? end($return_ids) : 0;
+            $this->data['return_sale'] = $last_return_id ? $this->sales_model->getInvoiceByID($last_return_id) : null;
+            $this->data['return_rows'] = $last_return_id ? $this->sales_model->getAllInvoiceItems($last_return_id) : null;
             $html_data                 = $this->load->view($this->theme . 'sales/pdf', $this->data, true);
             if (!$this->Settings->barcode_img) {
                 $html_data = preg_replace("'\<\?xml(.*)\?\>'", '', $html_data);
@@ -793,10 +801,6 @@ class Sales extends MY_Controller
         }
         $inv = $this->sales_model->getInvoiceByID($id);
 
-        // if ($inv->sale_status == 'returned' || $inv->return_id || $inv->return_sale_ref) {
-        //     $this->session->set_flashdata('error', lang('sale_x_action'));
-        //     admin_redirect($_SERVER['HTTP_REFERER'] ?? 'welcome');
-        // }
 
         if (!$this->session->userdata('edit_right')) {
             $this->sma->view_rights($inv->created_by);
@@ -920,7 +924,6 @@ class Sales extends MY_Controller
             $total_discount = $this->sma->formatDecimal(($order_discount + $product_discount), 4);
             $order_tax      = $this->site->calculateOrderTax($this->input->post('order_tax'), ($total + $product_tax - $order_discount));
             $total_tax      = $this->sma->formatDecimal(($product_tax + $order_tax), 4);
-            // $grand_total    = $this->sma->formatDecimal(($this->sma->formatDecimal($total) + $this->sma->formatDecimal($total_tax) + $this->sma->formatDecimal($shipping) - $this->sma->formatDecimal($order_discount)), 4);
             $grand_total = $this->sma->formatDecimal(($total + $total_tax + $this->sma->formatDecimal($shipping) - $this->sma->formatDecimal($order_discount)), 4);
             $data        = [
                 'date'  => $date,
@@ -959,7 +962,6 @@ class Sales extends MY_Controller
 
             $attachments        = $this->attachments->upload();
             $data['attachment'] = !empty($attachments);
-            // $this->sma->print_arrays($data, $products);
         }
 
         if ($this->form_validation->run() == true && $this->sales_model->updateSale($id, $data, $products, $attachments)) {
@@ -1044,8 +1046,14 @@ class Sales extends MY_Controller
                 $ri       = $this->Settings->item_addition ? $row->id : $c;
 
                 $pr[$ri] = [
-                    'id' => $c, 'item_id' => $row->id, 'label' => $row->name . ' (' . $row->code . ')',
-                    'row'        => $row, 'combo_items' => $combo_items, 'tax_rate' => $tax_rate, 'units' => $units, 'options' => $options,
+                    'id' => $c,
+                    'item_id' => $row->id,
+                    'label' => $row->name . ' (' . $row->code . ')',
+                    'row'        => $row,
+                    'combo_items' => $combo_items,
+                    'tax_rate' => $tax_rate,
+                    'units' => $units,
+                    'options' => $options,
                 ];
                 $c++;
             }
@@ -1603,7 +1611,7 @@ class Sales extends MY_Controller
     public function index($warehouse_id = null)
     {
 
-   
+
 
         $this->sma->checkPermissions();
 
@@ -1618,6 +1626,8 @@ class Sales extends MY_Controller
             $this->data['warehouse']    = $this->session->userdata('warehouse_id') ? $this->site->getWarehouseByID($this->session->userdata('warehouse_id')) : null;
         }
 
+        $this->data['open_return_modal_id'] = $this->session->flashdata('open_return_modal_id');
+        $this->data['open_return_modal_url'] = $this->data['open_return_modal_id'] ? 'sales/modal_view/' . $this->data['open_return_modal_id'] : null;
         $bc   = [['link' => base_url(), 'page' => lang('home')], ['link' => '#', 'page' => lang('sales')]];
         $meta = ['page_title' => lang('sales'), 'bc' => $bc];
         $this->page_construct('sales/index', $meta, $this->data);
@@ -1643,8 +1653,19 @@ class Sales extends MY_Controller
         $this->data['warehouse']   = $this->site->getWarehouseByID($inv->warehouse_id);
         $this->data['inv']         = $inv;
         $this->data['rows']        = $this->sales_model->getAllInvoiceItems($id);
-        $this->data['return_sale'] = $inv->return_id ? $this->sales_model->getInvoiceByID($inv->return_id) : null;
-        $this->data['return_rows'] = $inv->return_id ? $this->sales_model->getAllInvoiceItems($inv->return_id) : null;
+        $return_ids    = $this->site->getReturnSaleIds($inv);
+        $this->data['return_sales']     = [];
+        $this->data['return_rows_list'] = [];
+        $this->data['return_payments_list'] = [];
+        foreach ($return_ids as $rid) {
+            $this->data['return_sales'][]     = $this->sales_model->getInvoiceByID($rid);
+            $this->data['return_rows_list'][] = $this->sales_model->getAllInvoiceItems($rid);
+            $this->data['return_payments_list'][] = $this->sales_model->getInvoicePayments($rid);
+        }
+        $last_return_id = $return_ids ? end($return_ids) : 0;
+        $this->data['return_sale']     = $last_return_id ? $this->sales_model->getInvoiceByID($last_return_id) : null;
+        $this->data['return_rows']     = $last_return_id ? $this->sales_model->getAllInvoiceItems($last_return_id) : null;
+        $this->data['return_payments'] = $this->data['return_sale'] ? $this->sales_model->getInvoicePayments($this->data['return_sale']->id) : null;
         $this->data['attachments'] = $this->site->getAttachments($id, 'sale');
 
         $this->load->view($this->theme . 'sales/modal_view', $this->data);
@@ -1719,8 +1740,10 @@ class Sales extends MY_Controller
         $this->data['warehouse']   = $this->site->getWarehouseByID($inv->warehouse_id);
         $this->data['inv']         = $inv;
         $this->data['rows']        = $this->sales_model->getAllInvoiceItems($id);
-        $this->data['return_sale'] = $inv->return_id ? $this->sales_model->getInvoiceByID($inv->return_id) : null;
-        $this->data['return_rows'] = $inv->return_id ? $this->sales_model->getAllInvoiceItems($inv->return_id) : null;
+        $return_ids    = $this->site->getReturnSaleIds($inv);
+        $last_return_id = $return_ids ? end($return_ids) : 0;
+        $this->data['return_sale'] = $last_return_id ? $this->sales_model->getInvoiceByID($last_return_id) : null;
+        $this->data['return_rows'] = $last_return_id ? $this->sales_model->getAllInvoiceItems($last_return_id) : null;
         //$this->data['paypal'] = $this->sales_model->getPaypalSettings();
         //$this->data['skrill'] = $this->sales_model->getSkrillSettings();
 
@@ -1779,7 +1802,12 @@ class Sales extends MY_Controller
             $id = $this->input->get('id');
         }
         $sale = $this->sales_model->getInvoiceByID($id);
-
+        $original_items = $this->sales_model->getAllInvoiceItems($id);
+        $original_qty_map = [];
+        foreach ($original_items as $item) {
+            $key = $item->product_id . '_' . ($item->option_id ?? 'null');
+            $original_qty_map[$key] = $item->quantity;
+        }
 
         // if ($sale->return_id) {
         //     $this->session->set_flashdata('error', lang('sale_already_returned'));
@@ -1823,6 +1851,15 @@ class Sales extends MY_Controller
                 $item_discount      = $_POST['product_discount'][$r] ?? null;
                 $item_unit          = $_POST['product_unit'][$r];
                 $item_quantity      = (0 - $_POST['product_base_quantity'][$r]);
+
+                $qty_key = $item_id . '_' . ($item_option ?? 'null');
+                $original_qty = $original_qty_map[$qty_key] ?? 0;
+                $already_returned_qty = $this->sales_model->getTotalReturnedQuantity($id, $item_id, $item_option);
+                $remaining_qty = $original_qty - $already_returned_qty;
+                if (abs($item_quantity) > $remaining_qty) {
+                    $this->session->set_flashdata('error', lang('return_quantity_exceeds_original'));
+                    redirect($_SERVER['HTTP_REFERER']);
+                }
 
                 if (isset($item_code) && isset($real_unit_price) && isset($unit_price) && isset($item_quantity)) {
                     $product_details = $item_type != 'manual' ? $this->sales_model->getProductByCode($item_code) : null;
@@ -1904,6 +1941,28 @@ class Sales extends MY_Controller
             $total_tax      = $this->sma->formatDecimal(($product_tax + $order_tax), 4);
             // $grand_total    = $this->sma->formatDecimal(($this->sma->formatDecimal($total) + $this->sma->formatDecimal($total_tax) + $this->sma->formatDecimal($return_surcharge) + (0 - $shipping) - $this->sma->formatDecimal($order_discount)), 4);
             $grand_total = $this->sma->formatDecimal(($total + $total_tax + $return_surcharge + (0 - $shipping) - $this->sma->formatDecimal($order_discount)), 4);
+
+            $already_returned_amount = $this->sales_model->getTotalReturnedAmount($id);
+            $new_total_returned = $already_returned_amount + $grand_total;
+            if (abs($new_total_returned) > $sale->grand_total) {
+                $this->session->set_flashdata('error', lang('return_amount_exceeds_balance'));
+                redirect($_SERVER['HTTP_REFERER']);
+            }
+
+            $refund_amount = $this->input->post('amount-paid') ? $this->input->post('amount-paid') : 0;
+            $already_refunded = $this->sales_model->getTotalRefundedAmount($id);
+            // Refund must not exceed the value of the goods actually returned in THIS
+            // transaction, nor the customer's remaining paid balance. This prevents
+            // refunding more money than the returned items are worth (over-refund).
+            $refundable = min(abs($grand_total), ($sale->paid - $already_refunded));
+            if ($refund_amount > $refundable) {
+                $this->session->set_flashdata('error', lang('refund_amount_exceeds_paid'));
+                redirect($_SERVER['HTTP_REFERER']);
+            }
+
+            $return_sale_ref = !empty($sale->return_sale_ref) ? $sale->return_sale_ref : $reference;
+            $return_sale_total = ($sale->return_sale_total ? $sale->return_sale_total : 0) + $grand_total;
+
             $data        = [
                 'date'              => $date,
                 'sale_id'           => $id,
@@ -1926,11 +1985,12 @@ class Sales extends MY_Controller
                 'surcharge'         => $this->sma->formatDecimal($return_surcharge),
                 'grand_total'       => $grand_total,
                 'created_by'        => $this->session->userdata('user_id'),
-                'return_sale_ref'   => $reference,
+                'return_sale_ref'   => $return_sale_ref,
                 'shipping'          => $shipping,
                 'sale_status'       => 'returned',
                 'pos'               => $sale->pos,
                 'payment_status'    => $sale->payment_status == 'paid' ? 'due' : 'pending',
+                'return_sale_total' => $return_sale_total,
             ];
             if ($this->Settings->indian_gst) {
                 $data['cgst'] = $total_cgst;
@@ -1954,7 +2014,7 @@ class Sales extends MY_Controller
                     'created_by'   => $this->session->userdata('user_id'),
                     'type'         => 'returned',
                 ];
-                $data['payment_status'] = $grand_total == $this->input->post('amount-paid') ? 'paid' : 'partial';
+                $data['payment_status'] = abs($grand_total) == $this->input->post('amount-paid') ? 'paid' : 'partial';
             } else {
                 $payment = [];
             }
@@ -1966,6 +2026,7 @@ class Sales extends MY_Controller
 
         if ($this->form_validation->run() == true && $this->sales_model->addSale($data, $products, $payment, $si_return, $attachments)) {
             $this->session->set_flashdata('message', lang('return_sale_added'));
+            $this->session->set_flashdata('open_return_modal_id', $id);
             admin_redirect($sale->pos ? 'pos/sales' : 'sales');
         } else {
             $this->data['error'] = (validation_errors() ? validation_errors() : $this->session->flashdata('error'));
@@ -2410,9 +2471,10 @@ class Sales extends MY_Controller
 
         $rows           = $this->sales_model->getProductNames($sr, $warehouse_id, $pos);
 
-        
+
         if ($rows) {
-            $r = 0;
+            $r  = 0;
+            $pr = [];
             foreach ($rows as $row) {
                 $c = uniqid(mt_rand(), true);
                 unset($row->cost, $row->details, $row->product_details, $row->image, $row->barcode_symbology, $row->cf1, $row->cf2, $row->cf3, $row->cf4, $row->cf5, $row->cf6, $row->supplier1price, $row->supplier2price, $row->cfsupplier3price, $row->supplier4price, $row->supplier5price, $row->supplier1, $row->supplier2, $row->supplier3, $row->supplier4, $row->supplier5, $row->supplier1_part_no, $row->supplier2_part_no, $row->supplier3_part_no, $row->supplier4_part_no, $row->supplier5_part_no);
@@ -2438,6 +2500,13 @@ class Sales extends MY_Controller
                 // the real on-hand figure and gates overselling on it, matching the itemstock
                 // report instead of the stale FIFO quantity_balance sum.
                 $row->quantity = $this->site->getStockQuantity($row->id, $warehouse_id);
+                // With overselling disabled, hide stock-tracked standard products that have no
+                // real on-hand stock so they don't surface in POS search. This mirrors the
+                // warehouses_products.quantity > 0 gate that getProductNames() applies, but uses
+                // the transaction-based figure instead of the stale FIFO leftover.
+                if (!$this->Settings->overselling && $row->type == 'standard' && $row->track_quantity && $row->quantity <= 0) {
+                    continue;
+                }
                 if ($options) {
                     $option_quantity = 0;
                     foreach ($options as $option) {
@@ -2488,8 +2557,15 @@ class Sales extends MY_Controller
                 $tax_rate = $this->site->getTaxRateByID($row->tax_rate);
 
                 $pr[] = [
-                    'id' => sha1($c . $r), 'item_id' => $row->id, 'label' => $row->name . ' (' . $row->code . ')', 'category' => $row->category_id,
-                    'row'     => $row, 'combo_items' => $combo_items, 'tax_rate' => $tax_rate, 'units' => $units, 'options' => $options,
+                    'id' => sha1($c . $r),
+                    'item_id' => $row->id,
+                    'label' => $row->name . ' (' . $row->code . ')',
+                    'category' => $row->category_id,
+                    'row'     => $row,
+                    'combo_items' => $combo_items,
+                    'tax_rate' => $tax_rate,
+                    'units' => $units,
+                    'options' => $options,
                 ];
                 $r++;
             }
@@ -2601,8 +2677,10 @@ class Sales extends MY_Controller
         $this->data['warehouse']   = $this->site->getWarehouseByID($inv->warehouse_id);
         $this->data['inv']         = $inv;
         $this->data['rows']        = $this->sales_model->getAllInvoiceItems($id);
-        $this->data['return_sale'] = $inv->return_id ? $this->sales_model->getInvoiceByID($inv->return_id) : null;
-        $this->data['return_rows'] = $inv->return_id ? $this->sales_model->getAllInvoiceItems($inv->return_id) : null;
+        $return_ids    = $this->site->getReturnSaleIds($inv);
+        $last_return_id = $return_ids ? end($return_ids) : 0;
+        $this->data['return_sale'] = $last_return_id ? $this->sales_model->getInvoiceByID($last_return_id) : null;
+        $this->data['return_rows'] = $last_return_id ? $this->sales_model->getAllInvoiceItems($last_return_id) : null;
         $this->data['paypal']      = $this->sales_model->getPaypalSettings();
         $this->data['skrill']      = $this->sales_model->getSkrillSettings();
         $this->data['attachments'] = $this->site->getAttachments($id, 'sale');

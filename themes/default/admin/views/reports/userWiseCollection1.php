@@ -31,9 +31,12 @@
                                 <?php
                                 $cus[''] = lang('select') . ' ' . lang('user');
                                 foreach ($allStaff as $customer) {
-                                    $cus[$customer->id] = $customer->first_name;
+
+                                    $cus[$customer->id] = trim(
+                                        $customer->first_name . ' ' . $customer->last_name
+                                    );
                                 }
-                                echo form_dropdown('customer', $cus, ($_POST['customer'] ?? ''), 'class="form-control select" id="select_customer" placeholder="' . lang('select') . ' ' . lang('customer') . '" style="width:100%"')
+                                echo form_dropdown('customer', $cus, ($_POST['customer'] ?? ''), 'class="form-control select" id="select_customer" placeholder="' . lang('select') . ' ' . lang('user') . '" style="width:100%"')
                                 ?>
                             </div>
                         </div>

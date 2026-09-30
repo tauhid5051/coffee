@@ -222,6 +222,14 @@
             }
         });
 
+
+        <?php if (isset($open_return_modal_id) && $open_return_modal_id): ?>
+        setTimeout(function() {
+            $('#myModal2').load('<?= admin_url($open_return_modal_url) ?>', function() {
+                $('#myModal2').modal('show');
+            });
+        }, 500);
+        <?php endif; ?>
     });
 
 </script>

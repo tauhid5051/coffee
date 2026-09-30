@@ -108,6 +108,10 @@ $lang['seller']                            = 'ผู้ขาย';
 $lang['users']                             = 'ผู้ใช้งาน';
 $lang['return_note']                       = 'บันทึกการคืน';
 $lang['return_sale_added']                 = 'คืนการเพิ่มการขายสำเร็จ';
+$lang['return_quantity_exceeds_original'] = 'จำนวนคืนเกินกว่าจำนวนที่เหลืออยู่สำหรับสินค้านี้';
+$lang['return_amount_exceeds_balance']   = 'ยอดคืนเกินกว่ายอดคงเหลือของการขาย';
+$lang['refund_amount_exceeds_paid']      = 'ยอดคืนเงินเกินกว่ายอดชำระที่เหลืออยู่สำหรับการขายนี้';
+
 $lang['return_has_been_added']             = 'สินค้าบางตัวได้รับคืนแล้วจากการขายครั้งนี้';
 $lang['return_surcharge']                  = 'คืนค่าบริการ';
 $lang['payment_returned']                  = 'คืนเงินเรียบร้อย';

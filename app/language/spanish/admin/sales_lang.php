@@ -101,6 +101,10 @@ $lang['seller']                       = 'Vendedor';
 $lang['users']                        = 'Usuarios';
 $lang['return_note']                  = 'Nota de devolución';
 $lang['return_sale_added']            = 'Devolución de Venta añadida correctamente';
+$lang['return_quantity_exceeds_original'] = 'La cantidad devuelta supera la cantidad disponible restante para este artículo.';
+$lang['return_amount_exceeds_balance']   = 'El monto de devolución supera el saldo restante de la venta.';
+$lang['refund_amount_exceeds_paid']      = 'El monto del reembolso supera el monto pagado restante para esta venta.';
+
 $lang['return_has_been_added']        = 'Devolución ha sido añadida';
 
 $lang['sale_x_edited_older_than_3_months'] = 'Venta No puede ser editada ya que excede mas de 3 meses';

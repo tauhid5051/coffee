@@ -1,90 +1,390 @@
-<!DOCTYPE html>
-<html>
-<head>
-    <title>Sales Report</title>
-</head>
-
-<body>
-
-<div class="container mt-4">
-
-    <h3 class="mb-4 text-center"><?= $page_title ?></h3>
-
-    <!-- FILTER FORM -->
-    <form id="filterForm" class="row g-3">
-
-        <div class="col-md-3">
-            <input type="text" id="item_id" class="form-control" placeholder="Item ID">
-        </div>
-
-        <div class="col-md-3">
-            <input type="text" id="item_name" class="form-control" placeholder="Item Name">
-        </div>
-
-        <div class="col-md-3">
-            <input type="date" id="start_date" class="form-control">
-        </div>
-
-        <div class="col-md-3">
-            <input type="date" id="end_date" class="form-control">
-        </div>
-
-        <div class="col-md-12 text-end">
-            <button type="submit" class="btn btn-primary">Filter</button>
-        </div>
-
-    </form>
-
-    <hr>
-
-    <!-- TABLE -->
-    <table id="salesTable" class="table table-bordered table-striped w-100">
-        <thead class="table-dark">
-            <tr>
-                <th>Date</th>
-                <th>Reference</th>
-                <th>Customer</th>
-                <th>Product</th>
-                <th>Unit Cost</th>
-                <th>Qty</th>
-                <th>Subtotal</th>
-                <th>Created By</th>
-            </tr>
-        </thead>
-        <tbody></tbody>
-    </table>
-
-</div>
-
-
+<?php defined('BASEPATH') or exit('No direct script access allowed'); ?>
+<link rel="stylesheet"
+    href="https://cdn.datatables.net/1.13.8/css/jquery.dataTables.min.css">
+<link rel="stylesheet"
+    href="https://cdn.datatables.net/buttons/2.4.2/css/buttons.dataTables.min.css">
 <script src="https://cdn.datatables.net/1.13.8/js/jquery.dataTables.min.js"></script>
-<script id="view_full_002">
-$(document).ready(function () {
+<script src="https://cdn.datatables.net/buttons/2.4.2/js/dataTables.buttons.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdfmake/0.2.7/pdfmake.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdfmake/0.2.7/vfs_fonts.js"></script>
+<script src="https://cdn.datatables.net/buttons/2.4.2/js/buttons.html5.min.js"></script>
+<script src="https://cdn.datatables.net/buttons/2.4.2/js/buttons.print.min.js"></script>
+<div class="box">
+    <div class="box-header">
+        <h2 class="blue"><i class="fa-fw fa fa-users"></i><?= $page_title ?></h2>
 
-    var table = $('#salesTable').DataTable({
-        processing: true,
-        serverSide: true,
-        pageLength: 25,
-        ajax: {
-            url: "<?= admin_url('reports/getSalesList') ?>",
-            type: "GET",
-            data: function (d) {
-                d.item_id   = $('#item_id').val();
-                d.item_name = $('#item_name').val();
-                d.start_date = $('#start_date').val();
-                d.end_date   = $('#end_date').val();
+        <div class="box-icon">
+            <ul class="btn-tasks">
+                <ul class="btn-tasks">
+                    <li class="dropdown"><a id="print333" class="tip" onclick="window.print();" title="<?= lang('print') ?>"><i class="icon fa fa-print"></i></a></li>
+                    <li class="dropdown"><a href="#" id="image" class="tip" title="<?= lang('save_image') ?>"><i class="icon fa fa-file-picture-o"></i></a></li>
+                </ul>
+        </div>
+    </div>
+    <div class="box-content">
+        <div class="row">
+            <div class="col-lg-12">
+                <p class="introtext"><?= lang(' '); ?></p>
+                <!-- pppp -->
+                <div id="form" class="no-print">
+                    <form id="saleFilterForm" autocomplete="off">
+                        <div class="row">
+
+
+                            <div class="col-sm-4">
+                                <div class="form-group">
+                                    <?= lang('user', 'user'); ?>
+
+                                    <?php
+                                    $users = [
+                                        '' => lang('select') . ' ' . lang('user')
+                                    ];
+
+                                    foreach ($allStaff as $staff) {
+                                        $users[$staff->id] =
+                                            trim($staff->first_name . ' ' . $staff->last_name);
+                                    }
+
+                                    echo form_dropdown(
+                                        'user',
+                                        $users,
+                                        $_POST['user'] ?? '',
+                                        'class="form-control select" id="select_user" style="width:100%"'
+                                    );
+                                    ?>
+                                </div>
+                            </div>
+
+                            <div class="col-sm-4">
+                                <div class="form-group">
+                                    <?= lang('item_id', 'item_id'); ?>
+                                    <?php echo form_input('item_id', (isset($_POST['item_id']) ? $_POST['item_id'] : ''), 'class="form-control number"   id="item_id"'); ?>
+                                </div>
+                            </div>
+                            <div class="col-sm-4">
+                                <div class="form-group">
+                                    <?= lang('item_name', 'item_name'); ?>
+                                    <?php echo form_input('item_name', (isset($_POST['item_name']) ? $_POST['item_name'] : ''), 'class="form-control number"   id="item_name"'); ?>
+                                </div>
+                            </div>
+                            <div class="col-sm-4">
+                                <div class="form-group">
+                                    <?= lang('start_date', 'start_date'); ?>
+                                    <?php echo form_input('start_date', (isset($_POST['start_date']) ? $_POST['start_date'] : ''), 'class="form-control date"   id="start_date"'); ?>
+                                </div>
+                            </div>
+                            <div class="col-sm-4">
+                                <div class="form-group">
+                                    <?= lang('end_date', 'end_date'); ?>
+                                    <?php echo form_input('end_date', (isset($_POST['end_date']) ? $_POST['end_date'] : ''), 'class="form-control date"  id="end_date"'); ?>
+                                </div>
+                            </div>
+                        </div>
+                        <br>
+                        <div class="form-group">
+                            <div class="controls">
+                                <button type="submit" class="btn btn-primary">
+                                    <?= $this->lang->line('submit'); ?>
+                                </button>
+
+                            </div>
+                        </div>
+                        <?php echo form_close(); ?>
+                </div>
+                <div class="clearfix"></div>
+                <br>
+                <!-- /ppppppp -->
+                <div class="row">
+                    <h2 style="text-align: center;font-weight: bold;font-family: system-ui;">
+                        <p style="font-size: 20px;"> <?= $Settings->site_name ?> </p>
+                        <!-- <br> -->
+                        <p> <?= $page_title ?> </p>
+                        <!-- <br> -->
+                        <p>
+                            Date Range:
+                            <span id="reportDateRange"></span>
+                        </p>
+                    </h2>
+                </div>
+                <div class="row col-xs-12">
+                    <div class="col-xs-6" style=" text-align: left; ">
+                        Print Date: <?= date('d/m/y h:i:sa'); ?>
+                    </div>
+                    <div class="col-xs-6" style=" text-align: end; ">
+                        Printed By: <?= $this->session->userdata('username'); ?>
+                    </div>
+                </div>
+                <!-- /ppppppp -->
+                <div class="table-responsive">
+                    <table id="saleData"
+                        cellpadding="0"
+                        cellspacing="0"
+                        border="0"
+                        class="table table-bordered table-condensed table-hover table-striped reports-table"
+                        style="width:100%">
+
+                        <thead>
+                            <tr class="primary">
+                                <th style="text-align:left;">Sale ID</th>
+                                <th style="text-align:left;">Reference No</th>
+                                <th style="text-align:left;">Date</th>
+                                <th style="text-align:left;">Customer</th>
+                                <th style="text-align:left;">Product</th>
+                                <th style="text-align:right;">Quantity</th>
+                                <th style="text-align:right;">Unit Cost</th>
+                                <th style="text-align:right;">Subtotal</th>
+                                <th style="text-align:left;">Created By</th>
+                            </tr>
+                        </thead>
+                        <tfoot>
+                            <tr class="active">
+                                <th colspan="7" style="text-align:right;">
+                                    Grand Total:
+                                </th>
+                                <th> <span id="grandTotal">0.00</span></th>
+                                <th style="text-align:right;"></th>
+                            </tr>
+                        </tfoot>
+
+                    </table>
+
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+<script>
+    $(document).ready(function() {
+
+        function updateReportDateRange() {
+
+            var start = $('#start_date').val();
+            var end = $('#end_date').val();
+
+            if (!start) {
+                start = '<?= date('d/m/Y'); ?>';
             }
+
+            if (!end) {
+                end = '<?= date('d/m/Y'); ?>';
+            }
+
+            $('#reportDateRange').text(start + ' - ' + end);
         }
-    });
 
-    // Filter submit
-    $('#filterForm').on('submit', function (e) {
-        e.preventDefault();
-        table.ajax.reload();
-    });
+        updateReportDateRange();
 
-});
+        $('#saleFilterForm').on('submit', function(e) {
+
+            e.preventDefault();
+
+            updateReportDateRange();
+
+            table.ajax.reload(null, true);
+        });
+
+
+        var table = $('#saleData').DataTable({
+
+            processing: true,
+            serverSide: true,
+
+            ajax: {
+                url: '<?= admin_url("reports/saleslist_ajax"); ?>',
+                type: 'POST',
+
+                data: function(d) {
+
+                    d.item_id =
+                        $('#item_id').val() || '';
+
+                    d.item_name =
+                        $('#item_name').val() || '';
+
+                    d.start_date =
+                        $('#start_date').val() || '';
+
+                    d.end_date =
+                        $('#end_date').val() || '';
+
+                    d.user =
+                        $('#select_user').val() || '';
+
+                    d['<?= $this->security->get_csrf_token_name(); ?>'] =
+                        '<?= $this->security->get_csrf_hash(); ?>';
+                },
+
+                dataSrc: function(json) {
+                    var grandTotal = parseFloat(json.grand_total || 0);
+
+                    $('#grandTotal').text(
+                        '৳ ' + grandTotal.toLocaleString('en-IN', {
+                            minimumFractionDigits: 0,
+                            maximumFractionDigits: 0
+                        })
+                    );
+
+                    return json.data;
+                }
+            },
+
+            pageLength: 25,
+
+            lengthMenu: [
+                [10, 25, 50, 100, 250],
+                [10, 25, 50, 100, 250]
+            ],
+
+            searching: true,
+
+            ordering: false,
+
+            paging: true,
+
+            info: true,
+
+            dom: '<"row no-print"' +
+                '<"col-sm-4"l>' +
+                '<"col-sm-8 text-right"Bf>' +
+                '>' +
+                'rt' +
+                '<"row no-print"' +
+                '<"col-sm-6"i>' +
+                '<"col-sm-6 text-right"p>' +
+                '>',
+
+            buttons: [
+
+                // ----------------------------------------
+                // COPY
+                // ----------------------------------------
+
+                {
+                    extend: 'copyHtml5',
+                    text: '<i class="fa fa-copy"></i> Copy',
+                    className: 'btn btn-default btn-sm'
+                },
+
+                // ----------------------------------------
+                // EXCEL / CSV EXPORT FROM SERVER
+                // ----------------------------------------
+
+                {
+                    text: '<i class="fa fa-file-excel-o"></i> Excel',
+
+                    className: 'btn btn-success btn-sm',
+
+                    action: function(e, dt, node, config) {
+
+                        var form = $('<form>', {
+                            method: 'POST',
+                            action: '<?= admin_url("reports/saleslist_export_excel"); ?>',
+                            target: '_blank'
+                        });
+
+                        // Item ID
+                        form.append(
+                            $('<input>', {
+                                type: 'hidden',
+                                name: 'item_id',
+                                value: $('#item_id').val() || ''
+                            })
+                        );
+
+                        // Item Name
+                        form.append(
+                            $('<input>', {
+                                type: 'hidden',
+                                name: 'item_name',
+                                value: $('#item_name').val() || ''
+                            })
+                        );
+
+                        // User
+                        form.append(
+                            $('<input>', {
+                                type: 'hidden',
+                                name: 'user',
+                                value: $('#select_user').val() || ''
+                            })
+                        );
+
+                        // Start Date
+                        form.append(
+                            $('<input>', {
+                                type: 'hidden',
+                                name: 'start_date',
+                                value: $('#start_date').val() || ''
+                            })
+                        );
+
+                        // End Date
+                        form.append(
+                            $('<input>', {
+                                type: 'hidden',
+                                name: 'end_date',
+                                value: $('#end_date').val() || ''
+                            })
+                        );
+
+                        // CSRF
+                        form.append(
+                            $('<input>', {
+                                type: 'hidden',
+                                name: '<?= $this->security->get_csrf_token_name(); ?>',
+                                value: '<?= $this->security->get_csrf_hash(); ?>'
+                            })
+                        );
+
+                        $('body').append(form);
+
+                        form.submit();
+
+                        form.remove();
+                    }
+                },
+
+                // ----------------------------------------
+                // CSV
+                // ----------------------------------------
+
+                {
+                    extend: 'csvHtml5',
+                    text: '<i class="fa fa-file-text-o"></i> CSV',
+                    className: 'btn btn-info btn-sm'
+                },
+
+                // ----------------------------------------
+                // PDF
+                // ----------------------------------------
+
+                {
+                    extend: 'pdfHtml5',
+                    text: '<i class="fa fa-file-pdf-o"></i> PDF',
+                    className: 'btn btn-danger btn-sm',
+
+                    orientation: 'landscape',
+                    pageSize: 'A4'
+                },
+
+                // ----------------------------------------
+                // PRINT
+                // ----------------------------------------
+
+                {
+                    extend: 'print',
+                    text: '<i class="fa fa-print"></i> Print',
+                    className: 'btn btn-primary btn-sm'
+                }
+            ]
+        });
+
+
+
+        $('#saleFilterForm').on('submit', function(e) {
+            e.preventDefault();
+            table.ajax.reload(null, true);
+        });
+    });
 </script>
-
-</body>
-</html>

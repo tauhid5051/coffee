@@ -16,7 +16,7 @@
         }
         oTable = $('#POSData').dataTable({
             "aaSorting": [[0, "desc"]],
-            "aLengthMenu": [[10, 25, 50, 100, -1], [10, 25, 50, 100, "<?= lang('all') ?>"]],
+            "aLengthMenu": [[10, 25, 50, 100, 500], [10, 25, 50, 100, "500"]],
             "iDisplayLength": <?= $Settings->rows_per_page ?>,
             'bProcessing': true, 'bServerSide': true,
             'sAjaxSource': '<?= admin_url('pos/getSales' . ($warehouse_id ? '/' . $warehouse_id : '')) ?>',
@@ -94,6 +94,13 @@
                 });
             }
         });
+        <?php if (isset($open_return_modal_id) && $open_return_modal_id): ?>
+        setTimeout(function() {
+            $('#myModal2').load('<?= admin_url($open_return_modal_url) ?>', function() {
+                $('#myModal2').modal('show');
+            });
+        }, 500);
+        <?php endif; ?>
     });
 
 </script>

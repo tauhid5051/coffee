@@ -286,17 +286,18 @@ class Site extends CI_Model
 
     public function get_expiring_qty_alerts()
     {
-        $date = date('Y-m-d', strtotime('+3 months'));
-        $this->db->select('COUNT(*) as alert_num')
-        ->where('expiry !=', null)->where('expiry !=', '0000-00-00')
-        ->where('quantity_balance >', 0)
-        ->where('expiry <', $date);
-        $q = $this->db->get('purchase_items');
-        if ($q->num_rows() > 0) {
-            $res = $q->row();
-            return (int) $res->alert_num;
+        $this->load->driver('cache', ['adapter' => 'file']);
+        if (($alert_num = $this->cache->get('sma_exp_alert_num')) === false) {
+            $date = date('Y-m-d', strtotime('+3 months'));
+            $this->db->select('COUNT(*) as alert_num')
+            ->where('expiry !=', null)->where('expiry !=', '0000-00-00')
+            ->where('quantity_balance >', 0)
+            ->where('expiry <', $date);
+            $q         = $this->db->get('purchase_items');
+            $alert_num = ($q->num_rows() > 0) ? (int) $q->row()->alert_num : 0;
+            $this->cache->save('sma_exp_alert_num', $alert_num, 300);
         }
-        return false;
+        return $alert_num;
     }
 
     public function get_setting()
@@ -324,8 +325,13 @@ class Site extends CI_Model
 
     public function get_total_qty_alerts()
     {
-        $this->db->group_start()->where('quantity <= alert_quantity', null, false)->or_where('quantity', null)->group_end()->where('track_quantity', 1);
-        return $this->db->count_all_results('products');
+        $this->load->driver('cache', ['adapter' => 'file']);
+        if (($alert_num = $this->cache->get('sma_qty_alert_num')) === false) {
+            $this->db->group_start()->where('quantity <= alert_quantity', null, false)->or_where('quantity', null)->group_end()->where('track_quantity', 1);
+            $alert_num = (int) $this->db->count_all_results('products');
+            $this->cache->save('sma_qty_alert_num', $alert_num, 300);
+        }
+        return $alert_num;
     }
 
     public function getAddressByID($id)
@@ -678,24 +684,22 @@ class Site extends CI_Model
         $purchased = $this->db->get('purchase_items')->row();
         $purchased = $purchased ? floatval($purchased->qty) : 0;
 
-        // Sold (warehouse is held on the parent sale)
+        // Sold
         $this->db->select('SUM(si.quantity) as qty', false);
         $this->db->from('sale_items si');
-        $this->db->join('sales s', 's.id = si.sale_id', 'left');
         $this->db->where('si.product_id', $product_id);
         if ($warehouse_id) {
-            $this->db->where('s.warehouse_id', $warehouse_id);
+            $this->db->where('si.warehouse_id', $warehouse_id);
         }
         $sold = $this->db->get()->row();
         $sold = $sold ? floatval($sold->qty) : 0;
 
-        // Adjusted (addition/subtraction; warehouse is held on the adjustment)
+        // Adjusted (addition/subtraction)
         $this->db->select("SUM(CASE WHEN ai.type = 'addition' THEN ai.quantity ELSE -1 * ai.quantity END) as qty", false);
         $this->db->from('adjustment_items ai');
-        $this->db->join('adjustments a', 'a.id = ai.adjustment_id', 'left');
         $this->db->where('ai.product_id', $product_id);
         if ($warehouse_id) {
-            $this->db->where('a.warehouse_id', $warehouse_id);
+            $this->db->where('ai.warehouse_id', $warehouse_id);
         }
         $adjusted = $this->db->get()->row();
         $adjusted = $adjusted ? floatval($adjusted->qty) : 0;
@@ -821,6 +825,28 @@ class Site extends CI_Model
             return $data;
         }
         return false;
+    }
+
+    /**
+     * Return the list of return sale ids attached to a given sale row.
+     * Handles both the legacy single scalar value and the new JSON array
+     * format so existing records keep working after the upgrade.
+     */
+    public function getReturnSaleIds($sale)
+    {
+        $ids = [];
+        if (!empty($sale->return_id)) {
+            $decoded = json_decode($sale->return_id, true);
+            $ids = is_array($decoded) ? $decoded : [$sale->return_id];
+        }
+        $clean = [];
+        foreach ($ids as $rid) {
+            $rid = (int)$rid;
+            if ($rid > 0) {
+                $clean[] = $rid;
+            }
+        }
+        return array_values(array_unique($clean));
     }
 
     public function getSmsSettings()
@@ -1292,7 +1318,11 @@ class Site extends CI_Model
             }
 
             $payment_status = $paid == 0 ? 'pending' : $sale->payment_status;
-            if ($this->sma->formatDecimal($grand_total) == 0 || $this->sma->formatDecimal($grand_total) <= $this->sma->formatDecimal($paid)) {
+            if ($this->sma->formatDecimal($grand_total) == 0) {
+                $payment_status = 'paid';
+            } elseif ($this->sma->formatDecimal($grand_total) < 0) {
+                $payment_status = abs($this->sma->formatDecimal($paid)) >= abs($this->sma->formatDecimal($grand_total)) ? 'paid' : 'partial';
+            } elseif ($this->sma->formatDecimal($grand_total) <= $this->sma->formatDecimal($paid)) {
                 $payment_status = 'paid';
             } elseif ($sale->due_date <= date('Y-m-d') && !$sale->sale_id) {
                 $payment_status = 'due';

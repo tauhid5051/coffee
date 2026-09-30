@@ -141,6 +141,10 @@ $lang['sale_x_action']                   = 'Cette action ne peut être effectué
 $lang['sale_already_returned']           = 'La vente a déjà un dossier de retour';
 $lang['sale_is_returned']                = 'La vente a un dossier de retour';
 $lang['payment_was_returned']            = 'Le paiement a été retourné';
+$lang['return_quantity_exceeds_original'] = 'La quantité retournée dépasse la quantité disponible restante pour cet article.';
+$lang['return_amount_exceeds_balance']   = 'Le montant du retour dépasse le solde restant de la vente.';
+$lang['refund_amount_exceeds_paid']      = 'Le montant du remboursement dépasse le montant payé restant pour cette vente.';
+
 $lang['packing']                         = 'Emballage';
 $lang['delivering']                      = 'Livraison';
 $lang['delivered']                       = 'Livré';

@@ -533,8 +533,7 @@ class Datatables
             $this->ci->db->select($this->columns);
         }
 
-        $query = $this->ci->db->get($this->table, null, null, false);
-        return $query->num_rows();
+        return $this->ci->db->count_all_results($this->table);
     }
 
     /**

@@ -24,8 +24,8 @@
                         <?= lang('ref'); ?>: <?= $inv->reference_no; ?><br>
                         <?php if (!empty($inv->return_sale_ref)) {
                             echo lang('return_ref') . ': ' . $inv->return_sale_ref;
-                            if ($inv->return_id) {
-                                echo ' <a data-target="#myModal2" data-toggle="modal" href="' . admin_url('sales/modal_view/' . $inv->return_id) . '"><i class="fa fa-external-link no-print"></i></a><br>';
+                            if (!empty($return_sale)) {
+                                echo ' <a data-target="#myModal2" data-toggle="modal" href="' . admin_url('sales/modal_view/' . $return_sale->id) . '"><i class="fa fa-external-link no-print"></i></a><br>';
                             } else {
                                 echo '<br>';
                             }
@@ -45,8 +45,8 @@
                             'seller'           => $biller->company && $biller->company != '-' ? $biller->company : $biller->name,
                             'vat_no'           => $biller->vat_no ?: $biller->get_no,
                             'date'             => $inv->date,
-                            'grand_total'      => $return_sale ? ($inv->grand_total + $return_sale->grand_total) : $inv->grand_total,
-                            'total_tax_amount' => $return_sale ? ($inv->total_tax + $return_sale->total_tax) : $inv->total_tax,
+                            'grand_total'      => $inv->grand_total + $total_return_grand,
+                            'total_tax_amount' => $inv->total_tax + $total_return_product_tax,
                         ]); ?>
                         <?= $this->sma->qrcode('text', $qrtext, 2); ?>
                     </div>
@@ -260,9 +260,80 @@
                             $r++;
                         endforeach;
                     }
+
+                    if (!empty($return_sales)) {
+                        foreach ($return_sales as $idx => $return_sale) {
+                            if (!$return_sale) {
+                                continue;
+                            }
+                            $return_rows = isset($return_rows_list) && isset($return_rows_list[$idx]) ? $return_rows_list[$idx] : [];
+                            echo '<tr class="warning"><td colspan="100%" class="no-border"><strong>' . lang('returned_items') . ' (' . $this->sma->hrld($return_sale->date) . ' ' . $return_sale->reference_no . ')</strong></td></tr>';
+                            if (!empty($return_rows)) {
+                                foreach ($return_rows as $row) :
+                                    ?>
+                                    <tr class="warning">
+                                        <td style="text-align:center; width:40px; vertical-align:middle;"><?= $r; ?></td>
+                                        <td style="vertical-align:middle;">
+                                            <?= $row->product_code . ' - ' . $row->product_name . ($row->variant ? ' (' . $row->variant . ')' : ''); ?>
+                                            <?= $row->second_name ? '<br>' . $row->second_name : ''; ?>
+                                            <?= $row->details ? '<br>' . $row->details : ''; ?>
+                                            <?= $row->serial_no ? '<br>' . $row->serial_no : ''; ?>
+                                        </td>
+                                        <?php if ($Settings->indian_gst) {
+                                            ?>
+                                        <td style="width: 80px; text-align:center; vertical-align:middle;"><?= $row->hsn_code ?: ''; ?></td>
+                                            <?php
+                                        } ?>
+                                        <td style="width: 80px; text-align:center; vertical-align:middle;"><?= $this->sma->formatQuantity($row->quantity) . ' ' . $row->base_unit_code; ?></td>
+                                        <td style="text-align:right; width:100px;"><?= $this->sma->formatMoney($row->unit_price); ?></td>
+                                        <?php
+                                        if ($Settings->tax1 && $inv->product_tax > 0) {
+                                            echo '<td style="width: 100px; text-align:right; vertical-align:middle;">' . ($row->item_tax != 0 ? '<small>(' . ($Settings->indian_gst ? $row->tax : $row->tax_code) . ')</small>' : '') . ' ' . $this->sma->formatMoney($row->item_tax) . '</td>';
+                                        }
+                                        if ($Settings->product_discount && $inv->product_discount != 0) {
+                                            echo '<td style="width: 100px; text-align:right; vertical-align:middle;">' . ($row->discount != 0 ? '<small>(' . $row->discount . ')</small> ' : '') . $this->sma->formatMoney($row->item_discount) . '</td>';
+                                        } ?>
+                                        <td style="text-align:right; width:120px;"><?= $this->sma->formatMoney($row->subtotal); ?></td>
+                                    </tr>
+                                    <?php
+                                    $r++;
+                                endforeach;
+                            }
+                        }
+                    }
                     ?>
                     </tbody>
                     <tfoot>
+                    <?php
+                    $all_return_sales = !empty($return_sales) ? $return_sales : ($return_sale ? [$return_sale] : []);
+                    $total_return_grand = 0;
+                    $total_return_paid = 0;
+                    $total_return_product_tax = 0;
+                    $total_return_product_discount = 0;
+                    $total_return_total = 0;
+                    $total_return_cgst = 0;
+                    $total_return_sgst = 0;
+                    $total_return_igst = 0;
+                    $total_return_order_discount = 0;
+                    $total_return_order_tax = 0;
+                    $total_return_shipping = 0;
+                    foreach ($all_return_sales as $return_sale) {
+                        if (!$return_sale) {
+                            continue;
+                        }
+                        $total_return_grand += $return_sale->grand_total;
+                        $total_return_paid += $return_sale->paid;
+                        $total_return_product_tax += $return_sale->product_tax;
+                        $total_return_product_discount += $return_sale->product_discount;
+                        $total_return_total += $return_sale->total;
+                        $total_return_cgst += $return_sale->cgst;
+                        $total_return_sgst += $return_sale->sgst;
+                        $total_return_igst += $return_sale->igst;
+                        $total_return_order_discount += $return_sale->order_discount;
+                        $total_return_order_tax += $return_sale->order_tax;
+                        $total_return_shipping += $return_sale->shipping;
+                    }
+                    ?>
                     <?php if ($inv->grand_total != $inv->total) {
                         ?>
                         <tr>
@@ -272,18 +343,18 @@
                             </td>
                             <?php
                             if ($Settings->tax1 && $inv->product_tax > 0) {
-                                echo '<td style="text-align:right;">' . $this->sma->formatMoney($return_sale ? ($inv->product_tax + $return_sale->product_tax) : $inv->product_tax) . '</td>';
+                                echo '<td style="text-align:right;">' . $this->sma->formatMoney($inv->product_tax + $total_return_product_tax) . '</td>';
                             }
                             if ($Settings->product_discount && $inv->product_discount != 0) {
-                                echo '<td style="text-align:right;">' . $this->sma->formatMoney($return_sale ? ($inv->product_discount + $return_sale->product_discount) : $inv->product_discount) . '</td>';
+                                echo '<td style="text-align:right;">' . $this->sma->formatMoney($inv->product_discount + $total_return_product_discount) . '</td>';
                             } ?>
-                            <td style="text-align:right; padding-right:10px;"><?= $this->sma->formatMoney($return_sale ? (($inv->total + $inv->product_tax) + ($return_sale->total + $return_sale->product_tax)) : ($inv->total + $inv->product_tax)); ?></td>
+                            <td style="text-align:right; padding-right:10px;"><?= $this->sma->formatMoney(($inv->total + $inv->product_tax) + ($total_return_total + $total_return_product_tax)); ?></td>
                         </tr>
                         <?php
                     } ?>
                     <?php
-                    if ($return_sale) {
-                        echo '<tr><td colspan="' . $col . '" style="text-align:right; padding-right:10px;;">' . lang('return_total') . ' (' . $default_currency->code . ')</td><td style="text-align:right; padding-right:10px;">' . $this->sma->formatMoney($return_sale->grand_total) . '</td></tr>';
+                    if ($total_return_grand != 0) {
+                        echo '<tr><td colspan="' . $col . '" style="text-align:right; padding-right:10px;;">' . lang('return_total') . ' (' . $default_currency->code . ')</td><td style="text-align:right; padding-right:10px;">' . $this->sma->formatMoney($total_return_grand) . '</td></tr>';
                     }
                     if ($inv->surcharge != 0) {
                         echo '<tr><td colspan="' . $col . '" style="text-align:right; padding-right:10px;;">' . lang('return_surcharge') . ' (' . $default_currency->code . ')</td><td style="text-align:right; padding-right:10px;">' . $this->sma->formatMoney($inv->surcharge) . '</td></tr>';
@@ -291,30 +362,27 @@
                     ?>
 
                     <?php if ($Settings->indian_gst) {
-                        if ($inv->cgst > 0) {
-                            $cgst = $return_sale ? $inv->cgst + $return_sale->cgst : $inv->cgst;
-                            echo '<tr><td colspan="' . $col . '" class="text-right">' . lang('cgst') . ' (' . $default_currency->code . ')</td><td class="text-right">' . ($Settings->format_gst ? $this->sma->formatMoney($cgst) : $cgst) . '</td></tr>';
+                        if ($inv->cgst > 0 || $total_return_cgst != 0) {
+                            echo '<tr><td colspan="' . $col . '" class="text-right">' . lang('cgst') . ' (' . $default_currency->code . ')</td><td class="text-right">' . ($Settings->format_gst ? $this->sma->formatMoney($inv->cgst + $total_return_cgst) : ($inv->cgst + $total_return_cgst)) . '</td></tr>';
                         }
-                        if ($inv->sgst > 0) {
-                            $sgst = $return_sale ? $inv->sgst + $return_sale->sgst : $inv->sgst;
-                            echo '<tr><td colspan="' . $col . '" class="text-right">' . lang('sgst') . ' (' . $default_currency->code . ')</td><td class="text-right">' . ($Settings->format_gst ? $this->sma->formatMoney($sgst) : $sgst) . '</td></tr>';
+                        if ($inv->sgst > 0 || $total_return_sgst != 0) {
+                            echo '<tr><td colspan="' . $col . '" class="text-right">' . lang('sgst') . ' (' . $default_currency->code . ')</td><td class="text-right">' . ($Settings->format_gst ? $this->sma->formatMoney($inv->sgst + $total_return_sgst) : ($inv->sgst + $total_return_sgst)) . '</td></tr>';
                         }
-                        if ($inv->igst > 0) {
-                            $igst = $return_sale ? $inv->igst + $return_sale->igst : $inv->igst;
-                            echo '<tr><td colspan="' . $col . '" class="text-right">' . lang('igst') . ' (' . $default_currency->code . ')</td><td class="text-right">' . ($Settings->format_gst ? $this->sma->formatMoney($igst) : $igst) . '</td></tr>';
+                        if ($inv->igst > 0 || $total_return_igst != 0) {
+                            echo '<tr><td colspan="' . $col . '" class="text-right">' . lang('igst') . ' (' . $default_currency->code . ')</td><td class="text-right">' . ($Settings->format_gst ? $this->sma->formatMoney($inv->igst + $total_return_igst) : ($inv->igst + $total_return_igst)) . '</td></tr>';
                         }
                     } ?>
 
                     <?php if ($inv->order_discount != 0) {
-                        echo '<tr><td colspan="' . $col . '" style="text-align:right; padding-right:10px;;">' . lang('order_discount') . ' (' . $default_currency->code . ')</td><td style="text-align:right; padding-right:10px;">' . ($inv->order_discount_id ? '<small>(' . $inv->order_discount_id . ')</small> ' : '') . $this->sma->formatMoney($return_sale ? ($inv->order_discount + $return_sale->order_discount) : $inv->order_discount) . '</td></tr>';
+                        echo '<tr><td colspan="' . $col . '" style="text-align:right; padding-right:10px;;">' . lang('order_discount') . ' (' . $default_currency->code . ')</td><td style="text-align:right; padding-right:10px;">' . ($inv->order_discount_id ? '<small>(' . $inv->order_discount_id . ')</small> ' : '') . $this->sma->formatMoney($inv->order_discount + $total_return_order_discount) . '</td></tr>';
                     }
                     ?>
                     <?php if ($Settings->tax2 && $inv->order_tax != 0) {
-                        echo '<tr><td colspan="' . $col . '" style="text-align:right; padding-right:10px;">' . lang('order_tax') . ' (' . $default_currency->code . ')</td><td style="text-align:right; padding-right:10px;">' . $this->sma->formatMoney($return_sale ? ($inv->order_tax + $return_sale->order_tax) : $inv->order_tax) . '</td></tr>';
+                        echo '<tr><td colspan="' . $col . '" style="text-align:right; padding-right:10px;">' . lang('order_tax') . ' (' . $default_currency->code . ')</td><td style="text-align:right; padding-right:10px;">' . $this->sma->formatMoney($inv->order_tax + $total_return_order_tax) . '</td></tr>';
                     }
                     ?>
                     <?php if ($inv->shipping != 0) {
-                        echo '<tr><td colspan="' . $col . '" style="text-align:right; padding-right:10px;;">' . lang('shipping') . ' (' . $default_currency->code . ')</td><td style="text-align:right; padding-right:10px;">' . $this->sma->formatMoney($inv->shipping - ($return_sale && $return_sale->shipping ? $return_sale->shipping : 0)) . '</td></tr>';
+                        echo '<tr><td colspan="' . $col . '" style="text-align:right; padding-right:10px;;">' . lang('shipping') . ' (' . $default_currency->code . ')</td><td style="text-align:right; padding-right:10px;">' . $this->sma->formatMoney($inv->shipping - $total_return_shipping) . '</td></tr>';
                     }
                     ?>
                     <tr>
@@ -322,28 +390,28 @@
                             style="text-align:right; font-weight:bold;"><?= lang('total_amount'); ?>
                             (<?= $default_currency->code; ?>)
                         </td>
-                        <td style="text-align:right; padding-right:10px; font-weight:bold;"><?= $this->sma->formatMoney($return_sale ? ($inv->grand_total + $return_sale->grand_total) : $inv->grand_total); ?></td>
+                        <td style="text-align:right; padding-right:10px; font-weight:bold;"><?= $this->sma->formatMoney($inv->grand_total + $total_return_grand); ?></td>
                     </tr>
                     <tr>
                         <td colspan="<?= $col; ?>"
                             style="text-align:right; font-weight:bold;"><?= lang('paid'); ?>
                             (<?= $default_currency->code; ?>)
                         </td>
-                        <td style="text-align:right; font-weight:bold;"><?= $this->sma->formatMoney($return_sale ? ($inv->paid + $return_sale->paid) : $inv->paid); ?></td>
+                        <td style="text-align:right; font-weight:bold;"><?= $this->sma->formatMoney($inv->paid + $total_return_paid); ?></td>
                     </tr>
                     <tr>
                         <td colspan="<?= $col; ?>"
                             style="text-align:right; font-weight:bold;"><?= lang('balance'); ?>
                             (<?= $default_currency->code; ?>)
                         </td>
-                        <td style="text-align:right; font-weight:bold;"><?= $this->sma->formatMoney(($return_sale ? ($inv->grand_total + $return_sale->grand_total) : $inv->grand_total) - ($return_sale ? ($inv->paid + $return_sale->paid) : $inv->paid)); ?></td>
+                        <td style="text-align:right; font-weight:bold;"><?= $this->sma->formatMoney(($inv->grand_total + $total_return_grand) - ($inv->paid + $total_return_paid)); ?></td>
                     </tr>
 
                     </tfoot>
                 </table>
             </div>
 
-            <?= $Settings->invoice_view > 0 ? $this->gst->summary($rows, $return_rows, ($return_sale ? $inv->product_tax + $return_sale->product_tax : $inv->product_tax)) : ''; ?>
+            <?= $Settings->invoice_view > 0 ? $this->gst->summary($rows, $return_rows, $inv->product_tax + $total_return_product_tax) : ''; ?>
 
             <div class="row">
                 <div class="col-xs-12">

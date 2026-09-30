@@ -1,0 +1,16 @@
+TRUNCATE TABLE sma_costing;
+TRUNCATE TABLE sma_payments;
+TRUNCATE TABLE sma_user_logins;
+TRUNCATE TABLE sma_warehouses_products;
+TRUNCATE TABLE sma_products;
+TRUNCATE TABLE sma_sessions;
+TRUNCATE TABLE sma_adjustment_items;
+TRUNCATE TABLE sma_logs;
+TRUNCATE TABLE sma_companies;
+TRUNCATE TABLE sma_sess_coffee;
+TRUNCATE TABLE sma_adjustments;
+TRUNCATE TABLE sma_purchase_items;
+TRUNCATE TABLE sma_sale_items;
+TRUNCATE TABLE sma_sales;
+TRUNCATE TABLE sma_returns;
+TRUNCATE TABLE sma_return_items;

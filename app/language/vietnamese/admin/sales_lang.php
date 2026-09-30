@@ -108,6 +108,10 @@ $lang['seller']                            = 'NV bán hàng';
 $lang['users']                             = 'Người dùng';
 $lang['return_note']                       = 'Return Note';
 $lang['return_sale_added']                 = 'Return sale successfully added';
+$lang['return_quantity_exceeds_original'] = 'Số lượng trả lại vượt quá số lượng còn lại có sẵn cho mặt hàng này.';
+$lang['return_amount_exceeds_balance']   = 'Số tiền trả lại vượt quá số dư bán hàng còn lại.';
+$lang['refund_amount_exceeds_paid']      = 'Số tiền hoàn lại vượt quá số tiền đã thanh toán còn lại cho đơn bán này.';
+
 $lang['return_has_been_added']             = 'Few items had been returned for this sale';
 $lang['return_surcharge']                  = 'Return Surcharge';
 $lang['payment_returned']                  = 'Payment Returned';

@@ -140,6 +140,10 @@ $lang['sale_x_action']                   = 'Tindakan ini tidak dapat dilakukan u
 $lang['sale_already_returned']           = 'Penjualan sudah memiliki catatan pengembalian';
 $lang['sale_is_returned']                = 'Catatan penjualan dikembalikan ';
 $lang['payment_was_returned']            = 'Pembayaran telah dikembalikan';
+$lang['return_quantity_exceeds_original'] = 'Jumlah pengembalian melebihi jumlah yang tersedia yang tersisa untuk item ini.';
+$lang['return_amount_exceeds_balance']   = 'Jumlah pengembalian melebihi saldo penjualan yang tersisa.';
+$lang['refund_amount_exceeds_paid']      = 'Jumlah pengembalian dana melebihi jumlah yang dibayar yang tersisa untuk penjualan ini.';
+
 $lang['packing']                         = 'Pengepakan';
 $lang['delivering']                      = 'Pengiriman';
 $lang['delivered']                       = 'Terkirim';

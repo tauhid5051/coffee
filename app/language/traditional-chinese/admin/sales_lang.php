@@ -142,6 +142,10 @@ $lang['sale_x_action']                   = '有退貨的銷售單操作無法執
 $lang['sale_already_returned']           = '銷售單已經有退貨紀錄';
 $lang['sale_is_returned']                = '銷售單有退貨紀錄';
 $lang['payment_was_returned']            = '付款已退回';
+$lang['return_quantity_exceeds_original'] = '退貨數量超過此商品剩餘可用數量。';
+$lang['return_amount_exceeds_balance']   = '退貨金額超過剩餘銷售餘額。';
+$lang['refund_amount_exceeds_paid']      = '退款金額超過此銷售的剩餘已付金額。';
+
 $lang['packing']                         = '裝箱中';
 $lang['delivering']                      = '交貨中';
 $lang['delivered']                       = '已交貨';
