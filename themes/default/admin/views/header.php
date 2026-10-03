@@ -334,7 +334,7 @@
                             </li>
 
                             <li class="dropdown">
-                                <a class="btn bdarkGreen tip" title="<?= lang('User Wise Collection') ?>" data-placement="bottom" href="<?= admin_url('reports/UserWiseCollection1') ?>">
+                                <a class="btn bdarkGreen tip" title="<?= lang('User Wise Collection') ?>" data-placement="bottom" href="<?= admin_url('reports/UserWiseCollection') ?>">
                                     <i class="fa fa-money"></i> <span class="padding05"></span>
                                 </a>
                             </li>
@@ -798,7 +798,7 @@
 
 
                                                     <li id="reports_customer_report">
-                                                        <a href="<?= admin_url('reports/UserWiseCollection1') ?>">
+                                                        <a href="<?= admin_url('reports/UserWiseCollection') ?>">
                                                             <i class="fa fa-users"></i><span class="text"> <?= lang('1. User Wise Collection'); ?></span>
                                                         </a>
                                                     </li>

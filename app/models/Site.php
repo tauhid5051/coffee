@@ -290,9 +290,9 @@ class Site extends CI_Model
         if (($alert_num = $this->cache->get('sma_exp_alert_num')) === false) {
             $date = date('Y-m-d', strtotime('+3 months'));
             $this->db->select('COUNT(*) as alert_num')
-            ->where('expiry !=', null)->where('expiry !=', '0000-00-00')
-            ->where('quantity_balance >', 0)
-            ->where('expiry <', $date);
+                ->where('expiry !=', null)->where('expiry !=', '0000-00-00')
+                ->where('quantity_balance >', 0)
+                ->where('expiry <', $date);
             $q         = $this->db->get('purchase_items');
             $alert_num = ($q->num_rows() > 0) ? (int) $q->row()->alert_num : 0;
             $this->cache->save('sma_exp_alert_num', $alert_num, 300);
@@ -318,8 +318,8 @@ class Site extends CI_Model
     public function get_shop_sale_alerts()
     {
         $this->db->join('deliveries', 'deliveries.sale_id=sales.id', 'left')
-        ->where('sales.shop', 1)->where('sales.sale_status', 'completed')->where('sales.payment_status', 'paid')
-        ->group_start()->where('deliveries.status !=', 'delivered')->or_where('deliveries.status IS NULL', null)->group_end();
+            ->where('sales.shop', 1)->where('sales.sale_status', 'completed')->where('sales.payment_status', 'paid')
+            ->group_start()->where('deliveries.status !=', 'delivered')->or_where('deliveries.status IS NULL', null)->group_end();
         return $this->db->count_all_results('sales');
     }
 
@@ -687,12 +687,17 @@ class Site extends CI_Model
         // Sold
         $this->db->select('SUM(si.quantity) as qty', false);
         $this->db->from('sale_items si');
+        $this->db->join('sales s', 's.id = si.sale_id', 'inner');
         $this->db->where('si.product_id', $product_id);
+        $this->db->where('s.sale_status', 'completed');
+
         if ($warehouse_id) {
             $this->db->where('si.warehouse_id', $warehouse_id);
         }
+
         $sold = $this->db->get()->row();
         $sold = $sold ? floatval($sold->qty) : 0;
+
 
         // Adjusted (addition/subtraction)
         $this->db->select("SUM(CASE WHEN ai.type = 'addition' THEN ai.quantity ELSE -1 * ai.quantity END) as qty", false);
@@ -892,7 +897,7 @@ class Site extends CI_Model
     public function getUnitsByBUID($base_unit)
     {
         $this->db->where('id', $base_unit)->or_where('base_unit', $base_unit)
-        ->group_by('id')->order_by('id asc');
+            ->group_by('id')->order_by('id asc');
         $q = $this->db->get('units');
         if ($q->num_rows() > 0) {
             foreach (($q->result()) as $row) {
@@ -1147,8 +1152,16 @@ class Site extends CI_Model
 
     public function syncProductQty($product_id, $warehouse_id)
     {
-        $balance_qty    = $this->getBalanceQuantity($product_id);
-        $wh_balance_qty = $this->getBalanceQuantity($product_id, $warehouse_id);
+
+
+        // $balance_qty    = $this->getBalanceQuantity($product_id);
+        // $wh_balance_qty = $this->getBalanceQuantity($product_id, $warehouse_id);
+
+        $balance_qty    = $this->getStockQuantity($product_id);
+        $wh_balance_qty = $this->getStockQuantity($product_id, $warehouse_id);
+
+
+
         if ($this->db->update('products', ['quantity' => $balance_qty], ['id' => $product_id])) {
             if ($this->getWarehouseProducts($product_id, $warehouse_id)) {
                 $this->db->update('warehouses_products', ['quantity' => $wh_balance_qty], ['product_id' => $product_id, 'warehouse_id' => $warehouse_id]);

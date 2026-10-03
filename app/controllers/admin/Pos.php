@@ -718,7 +718,7 @@ class Pos extends MY_Controller
         $add_delivery_link = anchor('admin/sales/add_delivery/$1', '<i class="fa fa-truck"></i> ' . lang('add_delivery'), 'data-toggle="modal" data-target="#myModal"');
         $email_link        = anchor('admin/#', '<i class="fa fa-envelope"></i> ' . lang('email_sale'), 'class="email_receipt" data-id="$1" data-email-address="$2"');
         $edit_link         = anchor('admin/sales/edit/$1', '<i class="fa fa-edit"></i> ' . lang('edit_sale'), 'class="sledit"');
-        $return_link       = anchor('admin/sales/return_sale/$1', '<i class="fa fa-angle-double-left"></i> ' . lang('return_sale'));
+        $return_link       = anchor('admin/sales/return_sale1/$1', '<i class="fa fa-angle-double-left"></i> ' . lang('return_sale'));
         $delete_link       = "<a href='#' class='po' title='<b>" . lang('delete_sale') . "</b>' data-content=\"<p>"
             . lang('r_u_sure') . "</p><a class='btn btn-danger po-delete' href='" . admin_url('sales/delete/$1') . "'>"
             . lang('i_m_sure') . "</a> <button class='btn po-close'>" . lang('no') . "</button>\"  rel='popover'><i class=\"fa fa-trash-o\"></i> "
@@ -1152,8 +1152,14 @@ class Pos extends MY_Controller
                     $ri       = $this->Settings->item_addition ? $row->id : $c;
 
                     $pr[$ri] = [
-                        'id' => $c, 'item_id' => $row->id, 'label' => $row->name . ' (' . $row->code . ')',
-                        'row'        => $row, 'combo_items' => $combo_items, 'tax_rate' => $tax_rate, 'units' => $units, 'options' => $options,
+                        'id' => $c,
+                        'item_id' => $row->id,
+                        'label' => $row->name . ' (' . $row->code . ')',
+                        'row'        => $row,
+                        'combo_items' => $combo_items,
+                        'tax_rate' => $tax_rate,
+                        'units' => $units,
+                        'options' => $options,
                     ];
                     $c++;
                 }
@@ -1199,20 +1205,20 @@ class Pos extends MY_Controller
                     $this->data['biller']          = $this->pos_model->getCompanyByID($inv->biller_id);
                     $this->data['customer']        = $this->pos_model->getCompanyByID($inv->customer_id);
                     $this->data['payments']        = $this->pos_model->getInvoicePayments($inv->id);
-        $return_ids    = $this->site->getReturnSaleIds($inv);
-        $this->data['return_sales']     = [];
-        $this->data['return_rows_list'] = [];
-        $this->data['return_payments_list'] = [];
-        foreach ($return_ids as $rid) {
-            $this->data['return_sales'][]     = $this->pos_model->getInvoiceByID($rid);
-            $this->data['return_rows_list'][] = $this->pos_model->getAllInvoiceItems($rid);
-            $this->data['return_payments_list'][] = $this->pos_model->getInvoicePayments($rid);
-        }
-        $last_return_id = $return_ids ? end($return_ids) : 0;
-        $this->data['return_sale']     = $last_return_id ? $this->pos_model->getInvoiceByID($last_return_id) : null;
-        $this->data['return_rows']     = $last_return_id ? $this->pos_model->getAllInvoiceItems($last_return_id) : null;
-        $this->data['return_payments'] = $this->data['return_sale'] ? $this->pos_model->getInvoicePayments($this->data['return_sale']->id) : null;
-        $this->data['inv']             = $inv;
+                    $return_ids    = $this->site->getReturnSaleIds($inv);
+                    $this->data['return_sales']     = [];
+                    $this->data['return_rows_list'] = [];
+                    $this->data['return_payments_list'] = [];
+                    foreach ($return_ids as $rid) {
+                        $this->data['return_sales'][]     = $this->pos_model->getInvoiceByID($rid);
+                        $this->data['return_rows_list'][] = $this->pos_model->getAllInvoiceItems($rid);
+                        $this->data['return_payments_list'][] = $this->pos_model->getInvoicePayments($rid);
+                    }
+                    $last_return_id = $return_ids ? end($return_ids) : 0;
+                    $this->data['return_sale']     = $last_return_id ? $this->pos_model->getInvoiceByID($last_return_id) : null;
+                    $this->data['return_rows']     = $last_return_id ? $this->pos_model->getAllInvoiceItems($last_return_id) : null;
+                    $this->data['return_payments'] = $this->data['return_sale'] ? $this->pos_model->getInvoicePayments($this->data['return_sale']->id) : null;
+                    $this->data['inv']             = $inv;
                     $this->data['print']           = $inv->id;
                     $this->data['created_by']      = $this->site->getUser($inv->created_by);
                 }

@@ -65,3 +65,15 @@ ADD INDEX idx_sale_items_sale_product (sale_id, product_id);
 
 ALTER TABLE sma_sale_items
 ADD INDEX idx_sale_items_product (product_id);
+
+ALTER TABLE sma_payments
+ADD INDEX idx_collection_user_date_sale
+(created_by, date, sale_id);
+
+ALTER TABLE sma_payments
+ADD INDEX idx_collection_user_date_type
+(created_by, date, type);
+
+ALTER TABLE sma_sales
+ADD INDEX idx_sales_id_reference_customer
+(id, customer_id, reference_no);

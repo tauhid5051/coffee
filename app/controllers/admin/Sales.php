@@ -1794,7 +1794,7 @@ class Sales extends MY_Controller
 
     /* ------------------------------- */
 
-    public function return_sale($id = null)
+    public function return_sale1($id = null)
     {
         $this->sma->checkPermissions('return_sales');
 

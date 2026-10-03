@@ -1,0 +1,143 @@
+app/controllers/admin/Pos.php:588:            if ($row->type == 'standard' && (!$this->Settings->overselling && $row->quantity < 1)) {
+app/controllers/admin/Pos.php:852:                if (isset($item_code) && isset($real_unit_price) && isset($unit_price) && isset($item_quantity)) {
+app/controllers/admin/Products.php:150:                    if (isset($_POST['combo_item_code'][$r]) && isset($_POST['combo_item_quantity'][$r]) && isset($_POST['combo_item_price'][$r])) {
+app/controllers/admin/Products.php:427:            $this->session->set_flashdata('message', lang('quantity_adjusted'));
+app/controllers/admin/Products.php:578:            $this->session->set_flashdata('message', lang('quantity_adjusted'));
+app/controllers/admin/Products.php:650:                    $this->excel->getActiveSheet()->setTitle('quantity_adjustments');
+app/controllers/admin/Products.php:822:            $this->session->set_flashdata('message', lang('stock_count_intiated'));
+app/controllers/admin/Products.php:1030:                    if (isset($_POST['combo_item_code'][$r]) && isset($_POST['combo_item_quantity'][$r]) && isset($_POST['combo_item_price'][$r])) {
+app/controllers/admin/Products.php:1313:            $this->session->set_flashdata('message', lang('quantity_adjusted'));
+app/controllers/admin/Products.php:1355:            $this->session->set_flashdata('error', lang('stock_count_finalized'));
+app/controllers/admin/Products.php:1359:        $this->form_validation->set_rules('count_id', lang('count_stock'), 'required');
+app/controllers/admin/Products.php:1434:            $this->session->set_flashdata('message', lang('stock_count_finalized'));
+app/controllers/admin/Products.php:1902:                        'alert_quantity'    => isset($value[10]) ? trim($value[10]) : '',
+app/controllers/admin/Products.php:2286:                    $this->session->set_flashdata('message', $this->lang->line('products_quantity_sync'));
+app/controllers/admin/Products.php:2332:                    $this->excel->getActiveSheet()->SetCellValue('K1', lang('alert_quantity'));
+app/controllers/admin/Products.php:2349:                    $this->excel->getActiveSheet()->SetCellValue('AB1', lang('quantity'));
+app/controllers/admin/Products.php:2407:                        $this->excel->getActiveSheet()->SetCellValue('K' . $row, $product->alert_quantity);
+app/controllers/admin/Products.php:2424:                        $this->excel->getActiveSheet()->SetCellValue('AB' . $row, $quantity);
+app/controllers/admin/Purchases.php:83:                if (isset($item_code) && isset($real_unit_cost) && isset($unit_cost) && isset($item_quantity)) {
+app/controllers/admin/Purchases.php:596:                if (isset($item_code) && isset($real_unit_cost) && isset($unit_cost) && isset($item_quantity) && isset($quantity_balance)) {
+app/controllers/admin/Purchases.php:1487:                    if (isset($csv_pr['code']) && isset($csv_pr['net_unit_cost']) && isset($csv_pr['quantity'])) {
+app/controllers/admin/Purchases.php:1675:                if (isset($item_code) && isset($real_unit_cost) && isset($unit_cost) && isset($item_quantity)) {
+app/controllers/admin/Quotes.php:79:                if (isset($item_code) && isset($real_unit_price) && isset($unit_price) && isset($item_quantity)) {
+app/controllers/admin/Quotes.php:328:                if (isset($item_code) && isset($real_unit_price) && isset($unit_price) && isset($item_quantity)) {
+app/controllers/admin/Reports.php:1605:                $this->excel->getActiveSheet()->SetCellValue('I1', lang('stock_in_hand'));
+app/controllers/admin/Reports.php:1911:                $this->excel->getActiveSheet()->setTitle(lang('product_quantity_alerts'));
+app/controllers/admin/Reports.php:1914:                $this->excel->getActiveSheet()->SetCellValue('C1', lang('quantity'));
+app/controllers/admin/Reports.php:1915:                $this->excel->getActiveSheet()->SetCellValue('D1', lang('alert_quantity'));
+app/controllers/admin/Reports.php:1921:                    $this->excel->getActiveSheet()->SetCellValue('C' . $row, $data_row->quantity);
+app/controllers/admin/Reports.php:1922:                    $this->excel->getActiveSheet()->SetCellValue('D' . $row, $data_row->alert_quantity);
+app/controllers/admin/Returns.php:74:                if (isset($item_code) && isset($real_unit_price) && isset($unit_price) && isset($item_quantity)) {
+app/controllers/admin/Returns.php:281:                if (isset($item_code) && isset($real_unit_price) && isset($unit_price) && isset($item_quantity)) {
+app/controllers/admin/Sales.php:95:                if (isset($item_code) && isset($real_unit_price) && isset($unit_price) && isset($item_quantity)) {
+app/controllers/admin/Sales.php:859:                if (isset($item_code) && isset($real_unit_price) && isset($unit_price) && isset($item_quantity)) {
+app/controllers/admin/Sales.php:1860:                    $this->session->set_flashdata('error', lang('return_quantity_exceeds_original'));
+app/controllers/admin/Sales.php:1864:                if (isset($item_code) && isset($real_unit_price) && isset($unit_price) && isset($item_quantity)) {
+app/controllers/admin/Sales.php:2242:                    if (isset($csv_pr['code']) && isset($csv_pr['net_unit_price']) && isset($csv_pr['quantity'])) {
+app/controllers/admin/Sales.php:2265:                            if (isset($item_code) && isset($item_net_price) && isset($item_quantity)) {
+app/controllers/admin/Sales.php:2507:                if (!$this->Settings->overselling && $row->type == 'standard' && $row->track_quantity && $row->quantity <= 0) {
+app/controllers/admin/Transfers.php:79:                if (isset($item_code) && isset($real_unit_cost) && isset($unit_cost) && isset($item_quantity)) {
+app/controllers/admin/Transfers.php:191:                'value'                       => $this->form_validation->set_value('quantity'),
+app/controllers/admin/Transfers.php:307:                if (isset($item_code) && isset($real_unit_cost) && isset($unit_cost) && isset($item_quantity)) {
+app/controllers/admin/Transfers.php:866:                    if (isset($item_code) && isset($unit_cost) && isset($item_quantity)) {
+app/controllers/admin/Transfers.php:993:                'value'                       => $this->form_validation->set_value('quantity'),
+app/language/arabic/admin/products_lang.php:179:$lang['stock_count_tip']                          = 'You just need to update the COUNTED column in the downloaded csv file.';
+app/language/arabic/admin/products_lang.php:193:$lang['quantity_colum_tip']                       = 'Please set the quantity in negative (-1) for subtraction and positive (1) for addition. Variant column is optional';
+app/language/arabic/admin/purchases_lang.php:111:$lang['return_tip']                            = 'Please edit the return quantity below. You can remove the item or set the return quantity to zero if it is not being returned';
+app/language/arabic/admin/sales_lang.php:138:$lang['return_tip']                        = 'Please edit the return quantity below. You can remove the item or set the return quantity to zero if it is not being returned';
+app/language/english/admin/products_lang.php:72:$lang['edit_quantity_not_recommended_here']       = "Editing warehouse quantity here is not recommended as this could cause the inventory accounting related issues. Please add fake sale or purchase to set the correct quantity of the warehouse and that won't create inventory accounting issue.";
+app/language/english/admin/products_lang.php:112:$lang['wh_pr_qty_issue']                          = '<strong>Request Failed!</strong> Warehouse and product variants quantity id different. Please set the correct quantity for warehouse and product variants.';
+app/language/english/admin/products_lang.php:178:$lang['stock_count_tip']                          = 'You just need to update the COUNTED column in the downloaded csv file.';
+app/language/english/admin/products_lang.php:192:$lang['quantity_colum_tip']                       = 'Please set the quantity in negative (-1) for subtraction and positive (1) for addition. Variant column is optional';
+app/language/english/admin/purchases_lang.php:109:$lang['return_tip']                          = 'Please edit the return quantity below. You can remove the item or set the return quantity to zero if it is not being returned';
+app/language/english/admin/sales_lang.php:134:$lang['return_tip']                      = 'Please edit the return quantity below. You can remove the item or set the return quantity to zero if it is not being returned';
+app/models/Site.php:53:        if ($quantity > 0 && !$this->Settings->overselling) {
+app/models/Site.php:54:            $this->session->set_flashdata('error', sprintf(lang('quantity_out_of_stock_for_%s'), $product_name));
+app/models/Site.php:89:            $this->session->set_flashdata('error', sprintf(lang('quantity_out_of_stock_for_%s'), ($pi->product_name ?? $product_name)));
+app/models/Site.php:157:                            $this->db->update('purchase_items', ['quantity_balance' => $balance], ['id' => $pi->id]);
+app/models/Site.php:162:                            $this->db->update('purchase_items', ['quantity_balance' => 0], ['id' => $pi->id]);
+app/models/Site.php:165:                    $this->db->update('purchase_items', ['quantity_balance' => $quantity], ['id' => $os->id]);
+app/models/Site.php:1106:                return $this->db->update('purchase_items', ['quantity_balance' => $quantity_balance], ['id' => $pi->id]);
+app/models/Site.php:1152:        if ($this->db->update('products', ['quantity' => $balance_qty], ['id' => $product_id])) {
+app/models/Site.php:1154:                $this->db->update('warehouses_products', ['quantity' => $wh_balance_qty], ['product_id' => $product_id, 'warehouse_id' => $warehouse_id]);
+app/models/Site.php:1182:                            $this->db->update('purchase_items', ['quantity_balance' => $quantity_balance], ['id' => $pi->id]);
+app/models/Site.php:1193:                            $this->db->update('purchase_items', ['quantity_balance' => $item['quantity_balance']], ['id' => $item['purchase_item_id']]);
+app/models/Site.php:1290:                $this->db->update('products', ['quantity' => $quantity], ['id' => $product_id]);
+app/models/Site.php:1303:                        $this->db->update('product_variants', ['quantity' => $quantity], ['id' => $pv->id]);
+app/models/Site.php:1350:        if ($this->db->update('product_variants', ['quantity' => $balance_qty], ['id' => $variant_id])) {
+app/models/Site.php:1352:                $this->db->update('warehouses_products_variants', ['quantity' => $wh_balance_qty], ['option_id' => $variant_id, 'warehouse_id' => $warehouse_id]);
+app/models/admin/Cron_model.php:56:                $this->db->update('purchase_items', ['quantity_balance' => 0], ['id' => $pi->id]);
+app/models/admin/Pos_model.php:16:            if ($this->db->update('product_variants', ['quantity' => $nq], ['id' => $option_id])) {
+app/models/admin/Pos_model.php:118:            if ($this->updateQuantity($product_id, $warehouse_id, $new_quantity)) {
+app/models/admin/Pos_model.php:1362:    public function updateOptionQuantity($option_id, $quantity)
+app/models/admin/Pos_model.php:1366:            if ($this->db->update('product_variants', ['quantity' => $nq], ['id' => $option_id])) {
+app/models/admin/Pos_model.php:1381:    public function updateProductOptionQuantity($option_id, $warehouse_id, $quantity, $product_id)
+app/models/admin/Pos_model.php:1385:            if ($this->db->update('warehouses_products_variants', ['quantity' => $nq], ['option_id' => $option_id, 'warehouse_id' => $warehouse_id])) {
+app/models/admin/Pos_model.php:1399:    public function updateProductQuantity($product_id, $warehouse_id, $quantity)
+app/models/admin/Pos_model.php:1408:    public function updateQuantity($product_id, $warehouse_id, $quantity)
+app/models/admin/Pos_model.php:1410:        if ($this->db->update('warehouses_products', ['quantity' => $quantity], ['product_id' => $product_id, 'warehouse_id' => $warehouse_id])) {
+app/models/admin/Products_model.php:82:                    if (isset($wh_qty['quantity']) && !empty($wh_qty['quantity'])) {
+app/models/admin/Products_model.php:225:            if ($this->updateQuantity($product_id, $warehouse_id, $quantity, $rack)) {
+app/models/admin/Products_model.php:291:        if ($this->db->update('stock_counts', $data, ['id' => $id])) {
+app/models/admin/Products_model.php:952:        if ($this->db->update('product_variants', ['quantity' => $qty], ['id' => $option_id])) {
+app/models/admin/Products_model.php:1092:    public function updateProductOptionQuantity($option_id, $warehouse_id, $quantity, $product_id)
+app/models/admin/Products_model.php:1095:            if ($this->db->update('warehouses_products_variants', ['quantity' => $quantity], ['option_id' => $option_id, 'warehouse_id' => $warehouse_id])) {
+app/models/admin/Products_model.php:1108:    public function updateQuantity($product_id, $warehouse_id, $quantity, $rack = null)
+app/models/admin/Purchases_model.php:47:            if ($this->db->update('warehouses_products_variants', ['quantity' => $nq], ['option_id' => $option_id, 'warehouse_id' => $warehouse_id])) {
+app/models/admin/Purchases_model.php:80:                    $this->updateAVCO(['product_id' => $item['product_id'], 'warehouse_id' => $item['warehouse_id'], 'quantity' => $item['quantity'], 'cost' => $item['base_unit_cost'] ?? $item['real_unit_cost']]);
+app/models/admin/Purchases_model.php:202:                    $this->updateAVCO(['product_id' => $oitem->product_id, 'warehouse_id' => $oitem->warehouse_id, 'quantity' => (0 - $oitem->quantity), 'cost' => $oitem->real_unit_cost]);
+app/models/admin/Purchases_model.php:206:                        $this->site->setPurchaseItem($clause, ($oitem->quantity_balance - $received));
+app/models/admin/Purchases_model.php:524:    public function resetProductOptionQuantity($option_id, $warehouse_id, $quantity, $product_id)
+app/models/admin/Purchases_model.php:528:            if ($this->db->update('warehouses_products_variants', ['quantity' => $nq], ['option_id' => $option_id, 'warehouse_id' => $warehouse_id])) {
+app/models/admin/Purchases_model.php:565:                        $this->db->update('purchase_items', ['quantity' => $nqty, 'quantity_balance' => $bqty, 'quantity_received' => $rqty, 'item_tax' => $item_tax, 'item_discount' => $item_discount, 'subtotal' => $subtotal], ['id' => $item['purchase_item_id']]);
+app/models/admin/Purchases_model.php:627:                    $this->updateAVCO(['product_id' => $item['product_id'], 'warehouse_id' => $item['warehouse_id'], 'quantity' => $item['quantity'], 'cost' => $item['real_unit_cost']]);
+app/models/admin/Purchases_model.php:642:                    $this->updateAVCO(['product_id' => $oitem->product_id, 'warehouse_id' => $oitem->warehouse_id, 'quantity' => (0 - $oitem->quantity), 'cost' => $oitem->real_unit_cost]);
+app/models/admin/Purchases_model.php:667:                    $this->db->update('purchase_items', ['status' => $status, 'quantity_balance' => $qb, 'quantity_received' => $qr], ['id' => $item->id]);
+app/models/admin/Purchases_model.php:668:                    $this->updateAVCO(['product_id' => $item->product_id, 'warehouse_id' => $item->warehouse_id, 'quantity' => $item->quantity, 'cost' => $item->real_unit_cost]);
+app/models/admin/Purchases_model.php:675:                    $this->db->update('purchase_items', ['status' => $status, 'quantity_balance' => $qb, 'quantity_received' => $qr], ['id' => $item->id]);
+app/models/admin/Purchases_model.php:676:                    $this->updateAVCO(['product_id' => $item->product_id, 'warehouse_id' => $item->warehouse_id, 'quantity' => $item->quantity, 'cost' => $item->real_unit_cost]);
+app/models/admin/Returns_model.php:25:                    $this->site->setPurchaseItem($clause, $item['quantity']);
+app/models/admin/Returns_model.php:31:                        $this->site->setPurchaseItem($clause, ($combo_item->qty * $item['quantity']));
+app/models/admin/Returns_model.php:134:                    $this->site->setPurchaseItem($clause, (0 - $item->quantity));
+app/models/admin/Returns_model.php:140:                        $this->site->setPurchaseItem($clause, (0 - ($combo_item->qty * $item->quantity)));
+app/models/admin/Returns_model.php:159:                    $this->site->setPurchaseItem($clause, $item['quantity']);
+app/models/admin/Returns_model.php:165:                        $this->site->setPurchaseItem($clause, ($combo_item->qty * $item['quantity']));
+app/models/admin/Sales_model.php:42:            if ($this->db->update('product_variants', ['quantity' => $nq], ['id' => $option_id])) {
+app/models/admin/Sales_model.php:127:                            $this->updateCostingAndPurchaseItem($return_item, $combo_item->id, ($return_item['quantity'] * $combo_item->qty));
+app/models/admin/Sales_model.php:130:                        $this->updateCostingAndPurchaseItem($return_item, $return_item['product_id'], $return_item['quantity']);
+app/models/admin/Sales_model.php:765:                            $this->site->setPurchaseItem(['id' => $pi->id, 'product_id' => $pi->product_id, 'option_id' => $pi->option_id], $costing->quantity);
+app/models/admin/Sales_model.php:768:                            $this->site->setPurchaseItem(['id' => $pi->id, 'product_id' => $pi->product_id, 'option_id' => $pi->option_id], $costing->quantity);
+app/models/admin/Sales_model.php:802:    public function updateCostingAndPurchaseItem($return_item, $product_id, $quantity)
+app/models/admin/Sales_model.php:810:                    $this->db->update('costing', ['quantity' => $qty, 'quantity_balance' => $bln], ['id' => $costing->id]);
+app/models/admin/Sales_model.php:820:        $this->site->setPurchaseItem($clause, $quantity);
+app/models/admin/Sales_model.php:841:    public function updateOptionQuantity($option_id, $quantity)
+app/models/admin/Sales_model.php:845:            if ($this->db->update('product_variants', ['quantity' => $nq], ['id' => $option_id])) {
+app/models/admin/Sales_model.php:880:    public function updateProductOptionQuantity($option_id, $warehouse_id, $quantity, $product_id)
+app/models/admin/Sales_model.php:884:            if ($this->db->update('warehouses_products_variants', ['quantity' => $nq], ['option_id' => $option_id, 'warehouse_id' => $warehouse_id])) {
+app/models/admin/Settings_model.php:265:            $this->db->update('purchase_items', ['quantity_balance' => 0], ['warehouse_id' => $id]);
+app/models/admin/Transfers_model.php:285:                $this->site->setPurchaseItem($clause, $item->quantity);
+app/models/admin/Transfers_model.php:289:                    $this->site->setPurchaseItem($clause, ($item->quantity_balance - $item->quantity));
+app/models/admin/Transfers_model.php:304:                        $this->db->update('purchase_items', ['quantity_balance' => $balance_qty], ['id' => $pi->id]);
+app/models/admin/Transfers_model.php:309:                        $this->db->update('purchase_items', ['quantity_balance' => 0], ['id' => $pi->id]);
+app/models/admin/Transfers_model.php:318:            $this->site->setPurchaseItem($clause, (0 - $quantity));
+app/models/admin/Transfers_model.php:323:    public function updateQuantity($product_id, $warehouse_id, $quantity)
+app/models/admin/Transfers_model.php:325:        if ($this->db->update('warehouses_products', ['quantity' => $quantity], ['product_id' => $product_id, 'warehouse_id' => $warehouse_id])) {
+system/libraries/Cart.php:264:		$old_quantity = isset($this->_cart_contents[$rowid]['qty']) ? (int) $this->_cart_contents[$rowid]['qty'] : 0;
+themes/default/admin/views/pos/email_receipt.php:144:                                                    echo '<tr><td style="text-align:left;border-bottom:1px solid #DDD;">' . $this->sma->formatQuantity($row->unit_quantity) . ' x ' . $this->sma->formatMoney($row->unit_price) . ($row->item_tax != 0 ? ' - ' . lang('tax') . ' <small>(' . ($Settings->indian_gst ? $row->tax : $row->tax_code) . ')</small> ' . $this->sma->formatMoney($row->item_tax) . ' (' . lang('hsn_code') . ': ' . $row->hsn_code . ')' : '') . '</td><td style="text-align:right;border-bottom:1px solid #DDD;">' . $this->sma->formatMoney($row->subtotal) . '</td></tr>';
+themes/default/admin/views/pos/email_receipt.php:156:                                                        echo '<tr><td style="text-align:left;border-bottom:1px solid #DDD;">' . $this->sma->formatQuantity($row->unit_quantity) . ' x ' . $this->sma->formatMoney($row->unit_price) . ($row->item_tax != 0 ? ' - ' . lang('tax') . ' <small>(' . ($Settings->indian_gst ? $row->tax : $row->tax_code) . ')</small> ' . $this->sma->formatMoney($row->item_tax) . ' (' . lang('hsn_code') . ': ' . $row->hsn_code . ')' : '') . '</td><td style="text-align:right;border-bottom:1px solid #DDD;">' . $this->sma->formatMoney($row->subtotal) . '</td></tr>';
+themes/default/admin/views/pos/view.php:222:                                        echo '<tr><td class="no-border border-bottom">' . $this->sma->formatQuantity($row->unit_quantity) . ($row->product_unit_code ? $row->product_unit_code : '') . ' x ' . ($row->item_discount != 0 ? '(' . $this->sma->formatMoney($row->unit_price + ($row->item_discount / $row->unit_quantity)) . ' - ' . $this->sma->formatMoney($row->item_discount / $row->unit_quantity) . ')' : $this->sma->formatMoney($row->unit_price)) . ($row->item_tax != 0 ? ' [' . lang('tax') . ' <small>(' . ($Settings->indian_gst ? $row->tax : $row->tax_code) . ')</small> ' . $this->sma->formatMoney($row->item_tax) . ($row->hsn_code ? ' (' . lang($row->product_type == 'service' ? 'sac_code' : 'hsn_code') . ': ' . $row->hsn_code . ')' : '') . ']' : '') . '</td><td class="no-border border-bottom text-right">' . $this->sma->formatMoney($row->subtotal) . '</td></tr>';
+themes/default/admin/views/pos/view.php:234:                                            echo '<tr><td class="no-border border-bottom">' . $this->sma->formatQuantity($row->unit_quantity) . ($row->product_unit_code ? $row->product_unit_code : '') . ' x ' . $this->sma->formatMoney($row->unit_price) . ($row->item_tax != 0 ? ' - ' . lang('tax') . ' <small>(' . ($Settings->indian_gst ? $row->tax : $row->tax_code) . ')</small> ' . $this->sma->formatMoney($row->item_tax) . ($row->hsn_code ? ' (' . lang($row->product_type == 'service' ? 'sac_code' : 'hsn_code') . ': ' . $row->hsn_code . ')' : '') : '') . '</td><td class="no-border border-bottom text-right">' . $this->sma->formatMoney($row->subtotal) . '</td></tr>';
+themes/default/admin/views/pos/view.php:259:                                                    echo '<tr><td class="no-border border-bottom">' . $this->sma->formatQuantity($row->unit_quantity) . ($row->product_unit_code ? $row->product_unit_code : '') . ' x ' . $this->sma->formatMoney($row->unit_price) . ($row->item_tax != 0 ? ' - ' . lang('tax') . ' <small>(' . ($Settings->indian_gst ? $row->tax : $row->tax_code) . ')</small> ' . $this->sma->formatMoney($row->item_tax) . ($row->hsn_code ? ' (' . lang($row->product_type == 'service' ? 'sac_code' : 'hsn_code') . ': ' . $row->hsn_code . ')' : '') : '') . '</td><td class="no-border border-bottom text-right">' . $this->sma->formatMoney($row->subtotal) . '</td></tr>';
+themes/default/admin/views/products/add.php:243:                                   value="1" <?= ($product ? (isset($product->track_quantity) ? 'checked="checked"' : '') : 'checked="checked"') ?>>
+themes/default/admin/views/products/add.php:301:                                            if (isset($_POST['attr_name'][$r]) && (isset($_POST['attr_warehouse'][$r]) || isset($_POST['attr_quantity'][$r]))) {
+themes/default/admin/views/products/add.php:332:                                        echo '<div class="col-md-6 col-sm-6 col-xs-6" style="padding-bottom:15px;">' . $warehouse->name . '<br><div class="form-group">' . form_hidden('wh_' . $warehouse->id, $warehouse->id) . form_input('wh_qty_' . $warehouse->id, (isset($_POST['wh_qty_' . $warehouse->id]) ? $_POST['wh_qty_' . $warehouse->id] : (isset($warehouse->quantity) ? $warehouse->quantity : '')), 'class="form-control wh" id="wh_qty_' . $warehouse->id . '" placeholder="' . lang('quantity') . '"') . '</div>';
+themes/default/admin/views/products/add.php:343:                                        echo '<div class="col-md-6 col-sm-6 col-xs-6" style="padding-bottom:15px;">' . $warehouse->name . '<br><div class="form-group">' . form_hidden('wh_' . $warehouse->id, $warehouse->id) . form_input('wh_qty_' . $warehouse->id, (isset($_POST['wh_qty_' . $warehouse->id]) ? $_POST['wh_qty_' . $warehouse->id] : ''), 'class="form-control" id="wh_qty_' . $warehouse->id . '" placeholder="' . lang('quantity') . '"') . '</div>';
+themes/default/admin/views/products/add.php:674:                if (isset($_POST['combo_item_code'][$r]) && isset($_POST['combo_item_quantity'][$r]) && isset($_POST['combo_item_price'][$r])) {
+themes/default/admin/views/products/edit.php:241:                            class="input-group"> <?= form_input('alert_quantity', (isset($_POST['alert_quantity']) ? $_POST['alert_quantity'] : ($product ? $this->sma->formatDecimal($product->alert_quantity) : '')), 'class="form-control tip" id="alert_quantity"') ?>
+themes/default/admin/views/products/edit.php:358:                                                    if (isset($_POST['attr_name'][$r]) && (isset($_POST['attr_warehouse'][$r]) || isset($_POST['attr_quantity'][$r]))) {
+themes/default/admin/views/products/index.php:53:                                                                                                                           } ?> {"mRender": formatQuantity}, null, <?php if (!$warehouse_id || !$Settings->racks) {
+themes/default/admin/views/products/view_count.php:29:                                <td><?= $this->sma->hrld($stock_count->updated_at); ?></td>
+themes/default/admin/views/reports/itemstock.php:162:                                    value="<?= isset($_POST['stock_from'])
+themes/default/admin/views/reports/itemstock.php:186:                                    value="<?= isset($_POST['stock_to'])
+update/index.php:9:    <title>Update Stock Manager Advance with POS Module</title>

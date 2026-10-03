@@ -3251,122 +3251,6 @@ class Reports extends MY_Controller
     }
 
 
-    public function UserWiseCollectionDetails()
-    {
-        $this->sma->checkPermissions('customers');
-
-        $this->data['allStaff'] = $this->reports_model->getStaff();
-
-        $user_id = $this->input->post('user')
-            ? $this->input->post('user')
-            : null;
-
-        $start_date = $this->input->post('start_date')
-            ? $this->input->post('start_date')
-            : date('d/m/Y');
-
-        $end_date = $this->input->post('end_date')
-            ? $this->input->post('end_date')
-            : date('d/m/Y');
-
-        $start_db = date(
-            'Y-m-d',
-            strtotime(str_replace('/', '-', $start_date))
-        );
-
-        $end_db = date(
-            'Y-m-d',
-            strtotime(
-                str_replace('/', '-', $end_date) . ' +1 day'
-            )
-        );
-
-        $this->db
-            ->select("
-            sma_payments.id AS payment_id,
-            sma_payments.date AS payment_date,
-            sma_payments.amount,
-            sma_payments.paid_by,
-
-            sma_sales.id AS sale_id,
-            sma_sales.reference_no,
-            sma_sales.customer,
-            sma_sales.grand_total,
-
-            sma_users.id AS user_id,
-            sma_users.first_name,
-            sma_users.last_name
-        ", false)
-            ->from('sma_payments')
-            ->join(
-                'sma_sales',
-                'sma_sales.id = sma_payments.sale_id',
-                'left'
-            )
-            ->join(
-                'sma_users',
-                'sma_users.id = sma_sales.created_by',
-                'left'
-            )
-            ->where('sma_payments.date >=', $start_db)
-            ->where('sma_payments.date <', $end_db)
-            ->order_by('sma_payments.date', 'DESC');
-
-        if ($user_id) {
-            $this->db->where(
-                'sma_sales.created_by',
-                $user_id
-            );
-        }
-
-        $query = $this->db->get();
-
-        $this->data['records'] = $query->result_array();
-
-        // Totals
-        $this->data['totalCollection'] = 0;
-        $this->data['totalCash']       = 0;
-        $this->data['totalOther']      = 0;
-
-        foreach ($this->data['records'] as $row) {
-
-            $amount = (float) $row['amount'];
-
-            $this->data['totalCollection'] += $amount;
-
-            if (strtolower($row['paid_by']) == 'cash') {
-                $this->data['totalCash'] += $amount;
-            } else {
-                $this->data['totalOther'] += $amount;
-            }
-        }
-
-        $bc = [
-            [
-                'link' => base_url(),
-                'page' => lang('home')
-            ],
-            [
-                'link' => admin_url('reports'),
-                'page' => lang('reports')
-            ],
-            [
-                'link' => '#',
-                'page' => lang('User Wise Collection Details')
-            ]
-        ];
-
-        $meta = [
-            'page_title' => lang('User Wise Collection Details'),
-            'bc'         => $bc
-        ];
-
-        $this->page_construct(
-            'reports/userWiseCollectionDetails',
-            $meta,
-            $this->data
-        );
-    }
 
 
 
@@ -3783,17 +3667,15 @@ class Reports extends MY_Controller
             'bc'         => $bc
         ];
 
-        $this->data['products']   = [];
-        $this->data['customers']  = [];
-        $this->data['allStaff']   = $this->reports_model->getStaff();
-        $this->data['categories'] = $this->site->getAllCategories();
+        $this->data['allStaff'] = $this->reports_model->getStaff();
 
         // -------------------------------------------------
         // FILTERS
         // -------------------------------------------------
 
+        // User comes from sma_payments.created_by
         $user_id = $this->input->post('customer')
-            ? $this->input->post('customer')
+            ? (int) $this->input->post('customer')
             : null;
 
         $start_date = $this->input->post('start_date')
@@ -3804,6 +3686,10 @@ class Reports extends MY_Controller
             ? $this->input->post('end_date')
             : null;
 
+        // -------------------------------------------------
+        // DATE NORMALIZATION
+        // -------------------------------------------------
+
         if ($start_date) {
             $start_date = str_replace('/', '-', $start_date);
             $start_date = date('Y-m-d', strtotime($start_date));
@@ -3811,32 +3697,157 @@ class Reports extends MY_Controller
 
         if ($end_date) {
             $end_date = str_replace('/', '-', $end_date);
-            $end_date = date('Y-m-d', strtotime($end_date . ' +1 day'));
+            $end_date = date('Y-m-d', strtotime($end_date));
         }
 
-        $today     = date('Y-m-d');
-        $today_end = date('Y-m-d', strtotime($today . ' +1 day'));
+        // Default = today
+        $today = date('Y-m-d');
 
-        if (!$start_date || !$end_date) {
+        if (!$start_date) {
             $start_date = $today;
-            $end_date   = $today_end;
+        }
+
+        if (!$end_date) {
+            $end_date = $today;
         }
 
         // -------------------------------------------------
-        // USER WISE COLLECTION SUMMARY
+        // DATE RANGE
+        //
+        // Use >= start_date 00:00:00
+        // and < next day after end_date
+        //
+        // This includes the complete end date.
         // -------------------------------------------------
 
-        $sql = "    ";
+        $start_datetime = $start_date . ' 00:00:00';
+        $end_datetime   = date(
+            'Y-m-d 00:00:00',
+            strtotime($end_date . ' +1 day')
+        );
 
-        $params = [$start_date, $end_date];
+        // -------------------------------------------------
+        // USER-WISE COLLECTION SUMMARY
+        //
+        // User:
+        //     sma_payments.created_by
+        //
+        // Invoice:
+        //     COUNT(DISTINCT sma_payments.sale_id)
+        //
+        // Cash:
+        //     paid_by = cash
+        //
+        // CC:
+        //     paid_by = CC
+        //
+        // Cheque:
+        //     paid_by = Cheque
+        //
+        // Other:
+        //     everything else
+        //
+        // Total:
+        //     SUM(payment amount)
+        // -------------------------------------------------
+
+        $sql = "
+        SELECT
+            u.id AS user_id,
+
+            CONCAT(
+                COALESCE(u.first_name, ''),
+                CASE
+                    WHEN u.first_name IS NOT NULL
+                         AND u.first_name != ''
+                         AND u.last_name IS NOT NULL
+                         AND u.last_name != ''
+                    THEN ' '
+                    ELSE ''
+                END,
+                COALESCE(u.last_name, '')
+            ) AS user_name,
+
+            COUNT(DISTINCT p.sale_id) AS total_invoice,
+
+            SUM(
+                CASE
+                    WHEN LOWER(TRIM(p.paid_by)) = 'cash'
+                    THEN p.amount
+                    ELSE 0
+                END
+            ) AS cash,
+
+            SUM(
+                CASE
+                    WHEN LOWER(TRIM(p.paid_by)) = 'cc'
+                    THEN p.amount
+                    ELSE 0
+                END
+            ) AS cc,
+
+            SUM(
+                CASE
+                    WHEN LOWER(TRIM(p.paid_by)) = 'cheque'
+                    THEN p.amount
+                    ELSE 0
+                END
+            ) AS cheque,
+
+            SUM(
+                CASE
+                    WHEN LOWER(TRIM(p.paid_by)) NOT IN (
+                        'cash',
+                        'cc',
+                        'cheque'
+                    )
+                    THEN p.amount
+                    ELSE 0
+                END
+            ) AS other,
+
+            SUM(p.amount) AS total_collection
+
+        FROM sma_payments p
+
+        INNER JOIN sma_users u
+            ON u.id = p.created_by
+
+        WHERE p.date >= ?
+          AND p.date < ?
+
+          AND p.sale_id IS NOT NULL
+
+          AND p.type = 'received'
+    ";
+
+        $params = [
+            $start_datetime,
+            $end_datetime
+        ];
+
+        // -------------------------------------------------
+        // USER FILTER
+        // -------------------------------------------------
 
         if ($user_id) {
-            $sql .= " AND u.id = ? ";
+            $sql .= " AND p.created_by = ? ";
             $params[] = $user_id;
         }
 
+        // -------------------------------------------------
+        // GROUP
+        // -------------------------------------------------
+
         $sql .= "
-     ";
+        GROUP BY
+            u.id,
+            u.first_name,
+            u.last_name
+
+        ORDER BY
+            user_name ASC
+    ";
 
         $query = $this->db->query($sql, $params);
 
@@ -3844,48 +3855,970 @@ class Reports extends MY_Controller
 
         foreach ($query->result_array() as $row) {
 
-            $total_amount = (float) $row['total_amount'];
-            $paid         = (float) $row['paid'];
-            $cash         = (float) $row['cash'];
+            $row['total_invoice'] = (int) $row['total_invoice'];
 
-            $row['other'] = $paid - $cash;
+            $row['cash'] = (float) $row['cash'];
 
-            $row['balance'] = $total_amount - $paid;
+            $row['cc'] = (float) $row['cc'];
+
+            $row['cheque'] = (float) $row['cheque'];
+
+            $row['other'] = (float) $row['other'];
+
+            $row['total_collection'] = (float) $row['total_collection'];
 
             $records[] = $row;
         }
 
+        // -------------------------------------------------
+        // SEND DATA TO VIEW
+        // -------------------------------------------------
+
         $this->data['records'] = $records;
+
+        $this->data['start_date'] = $start_date;
+        $this->data['end_date']   = $end_date;
+        $this->data['user_id']    = $user_id;
 
         // -------------------------------------------------
         // GRAND TOTALS
         // -------------------------------------------------
 
-        $this->data['totalInvoice'] = 0;
-        $this->data['totalAmount']  = 0;
-        $this->data['totalPaid']    = 0;
-        $this->data['totalCash']    = 0;
-        $this->data['totalBalance'] = 0;
+        $this->data['totalInvoice']      = 0;
+        $this->data['totalCash']         = 0;
+        $this->data['totalCC']           = 0;
+        $this->data['totalCheque']       = 0;
+        $this->data['totalOther']        = 0;
+        $this->data['totalCollection']   = 0;
 
         foreach ($records as $row) {
 
-            $this->data['totalInvoice'] += (int) $row['total_invoice'];
+            $this->data['totalInvoice'] += $row['total_invoice'];
 
-            $this->data['totalAmount'] += (float) $row['total_amount'];
+            $this->data['totalCash'] += $row['cash'];
 
-            $this->data['totalPaid'] += (float) $row['paid'];
+            $this->data['totalCC'] += $row['cc'];
 
-            $this->data['totalCash'] += (float) $row['cash'];
+            $this->data['totalCheque'] += $row['cheque'];
 
-            $this->data['totalBalance'] += (float) $row['balance'];
+            $this->data['totalOther'] += $row['other'];
+
+            $this->data['totalCollection'] += $row['total_collection'];
         }
 
+        // echo '<pre>';
+        // print_r($this->data['records']);
+        // echo '</pre>';
+        // die;
+
+
+        // -------------------------------------------------
+        // LOAD VIEW
+        // -------------------------------------------------
+
         $this->page_construct(
-            'reports/userWiseCollection1',
+            'reports/userWiseCollection',
             $meta,
             $this->data
         );
     }
+
+
+
+    public function UserWiseCollectionDetails()
+    {
+        $this->sma->checkPermissions('customers');
+
+        $this->data['error'] = (validation_errors())
+            ? validation_errors()
+            : $this->session->flashdata('error');
+
+        $bc = [
+            ['link' => base_url(), 'page' => lang('home')],
+            ['link' => admin_url('reports'), 'page' => lang('reports')],
+            [
+                'link' => admin_url('reports/UserWiseCollection'),
+                'page' => lang('User Wise Collection')
+            ],
+            [
+                'link' => '#',
+                'page' => lang('Collection Details')
+            ]
+        ];
+
+        $meta = [
+            'page_title' => lang('User Wise Collection Details'),
+            'bc'         => $bc
+        ];
+
+        /*
+    |--------------------------------------------------------------------------
+    | FILTERS
+    |--------------------------------------------------------------------------
+    */
+
+        $user_id = $this->input->get('user')
+            ? (int) $this->input->get('user')
+            : (int) $this->input->post('user');
+
+        $start_date = $this->input->get('start_date')
+            ?: $this->input->post('start_date');
+
+        $end_date = $this->input->get('end_date')
+            ?: $this->input->post('end_date');
+
+
+        if (!$user_id) {
+
+            $this->session->set_flashdata(
+                'error',
+                'Please select a user.'
+            );
+
+            redirect(admin_url('reports/UserWiseCollection'));
+            return;
+        }
+
+
+        /*
+    |--------------------------------------------------------------------------
+    | DATE NORMALIZATION
+    |--------------------------------------------------------------------------
+    | Input format: dd/mm/YYYY
+    */
+
+        if ($start_date) {
+
+            $date = DateTime::createFromFormat(
+                'd/m/Y',
+                $start_date
+            );
+
+            if ($date) {
+                $start_date = $date->format('Y-m-d');
+            }
+        }
+
+        if ($end_date) {
+
+            $date = DateTime::createFromFormat(
+                'd/m/Y',
+                $end_date
+            );
+
+            if ($date) {
+                $end_date = $date->format('Y-m-d');
+            }
+        }
+
+
+        if (!$start_date) {
+            $start_date = date('Y-m-d');
+        }
+
+        if (!$end_date) {
+            $end_date = date('Y-m-d');
+        }
+
+
+        /*
+    |--------------------------------------------------------------------------
+    | DATETIME RANGE
+    |--------------------------------------------------------------------------
+    */
+
+        $start_datetime = $start_date . ' 00:00:00';
+
+        $end_datetime = date(
+            'Y-m-d 00:00:00',
+            strtotime($end_date . ' +1 day')
+        );
+
+
+        /*
+    |--------------------------------------------------------------------------
+    | GET USER
+    |--------------------------------------------------------------------------
+    */
+
+        $user_query = $this->db->query(
+            "
+        SELECT
+            id,
+            first_name,
+            last_name,
+            username
+        FROM sma_users
+        WHERE id = ?
+        LIMIT 1
+        ",
+            [$user_id]
+        );
+
+        $user = $user_query->row();
+
+
+        if (!$user) {
+
+            $this->session->set_flashdata(
+                'error',
+                'User not found.'
+            );
+
+            redirect(admin_url('reports/UserWiseCollection'));
+            return;
+        }
+
+
+        /*
+    |--------------------------------------------------------------------------
+    | ONLY GET SUMMARY HERE
+    |--------------------------------------------------------------------------
+    |
+    | We DO NOT load payment records here.
+    |
+    */
+
+        $summary_sql = "
+        SELECT
+            COUNT(*) AS total_transactions,
+            COALESCE(SUM(amount), 0) AS total_collection
+        FROM sma_payments
+        WHERE created_by = ?
+          AND type = 'received'
+          AND date >= ?
+          AND date < ?
+          AND sale_id IS NOT NULL
+    ";
+
+        $summary = $this->db->query(
+            $summary_sql,
+            [
+                $user_id,
+                $start_datetime,
+                $end_datetime
+            ]
+        )->row();
+
+
+        $this->data['records'] = [];
+
+        $this->data['totalCollection'] =
+            (float) $summary->total_collection;
+
+        $this->data['totalTransactions'] =
+            (int) $summary->total_transactions;
+
+        $this->data['user'] = $user;
+
+        $this->data['user_id'] = $user_id;
+
+        $this->data['start_date'] = $start_date;
+
+        $this->data['end_date'] = $end_date;
+
+
+        /*
+    |--------------------------------------------------------------------------
+    | PAGE
+    |--------------------------------------------------------------------------
+    */
+
+        $this->page_construct(
+            'reports/userWiseCollectionDetails',
+            $meta,
+            $this->data
+        );
+    }
+
+    public function UserWiseCollectionDetailsAjax()
+    {
+        $this->sma->checkPermissions('customers');
+
+        /*
+    |--------------------------------------------------------------------------
+    | DATATABLE PARAMETERS
+    |--------------------------------------------------------------------------
+    */
+
+        $draw = (int) $this->input->post('draw');
+
+        $start = (int) $this->input->post('start');
+
+        $length = (int) $this->input->post('length');
+
+        $search = trim(
+            $this->input->post('search')['value'] ?? ''
+        );
+
+
+        /*
+    |--------------------------------------------------------------------------
+    | PROTECTION
+    |--------------------------------------------------------------------------
+    */
+
+        if ($start < 0) {
+            $start = 0;
+        }
+
+        /*
+     * Never allow "All".
+     * Maximum 250 rows per request.
+     */
+        if ($length < 1 || $length > 250) {
+            $length = 25;
+        }
+
+
+        /*
+    |--------------------------------------------------------------------------
+    | FILTERS
+    |--------------------------------------------------------------------------
+    */
+
+        $user_id = (int) $this->input->post('user');
+
+        $start_date = $this->input->post('start_date');
+
+        $end_date = $this->input->post('end_date');
+
+
+        /*
+    |--------------------------------------------------------------------------
+    | DATE NORMALIZATION
+    |--------------------------------------------------------------------------
+    */
+
+        if ($start_date) {
+
+            $date = DateTime::createFromFormat(
+                'Y-m-d',
+                $start_date
+            );
+
+            if (!$date) {
+
+                $date = DateTime::createFromFormat(
+                    'd/m/Y',
+                    $start_date
+                );
+            }
+
+            if ($date) {
+                $start_date = $date->format('Y-m-d');
+            }
+        }
+
+
+        if ($end_date) {
+
+            $date = DateTime::createFromFormat(
+                'Y-m-d',
+                $end_date
+            );
+
+            if (!$date) {
+
+                $date = DateTime::createFromFormat(
+                    'd/m/Y',
+                    $end_date
+                );
+            }
+
+            if ($date) {
+                $end_date = $date->format('Y-m-d');
+            }
+        }
+
+
+        if (!$start_date) {
+            $start_date = date('Y-m-d');
+        }
+
+        if (!$end_date) {
+            $end_date = date('Y-m-d');
+        }
+
+
+        $start_datetime = $start_date . ' 00:00:00';
+
+        $end_datetime = date(
+            'Y-m-d 00:00:00',
+            strtotime($end_date . ' +1 day')
+        );
+
+
+        /*
+    |--------------------------------------------------------------------------
+    | ORDER
+    |--------------------------------------------------------------------------
+    |
+    | Never trust DataTables order column directly.
+    |
+    */
+
+        $order_column = (int) (
+            $this->input->post('order')[0]['column'] ?? 0
+        );
+
+        $order_direction = strtolower(
+            $this->input->post('order')[0]['dir'] ?? 'asc'
+        );
+
+        if (!in_array($order_direction, ['asc', 'desc'], true)) {
+            $order_direction = 'asc';
+        }
+
+
+        /*
+    |--------------------------------------------------------------------------
+    | ALLOWED ORDER COLUMNS
+    |--------------------------------------------------------------------------
+    */
+
+        $order_columns = [
+            0 => 'p.date',
+            1 => 's.reference_no',
+            2 => 's.customer',
+            3 => 'p.amount',
+            4 => 'p.paid_by'
+        ];
+
+        $order_by = $order_columns[$order_column]
+            ?? 'p.date';
+
+
+        /*
+    |--------------------------------------------------------------------------
+    | TOTAL RECORDS
+    |--------------------------------------------------------------------------
+    */
+
+        $total_sql = "
+        SELECT COUNT(*) AS total
+        FROM sma_payments p
+        WHERE p.created_by = ?
+          AND p.type = 'received'
+          AND p.date >= ?
+          AND p.date < ?
+          AND p.sale_id IS NOT NULL
+    ";
+
+        $total_result = $this->db->query(
+            $total_sql,
+            [
+                $user_id,
+                $start_datetime,
+                $end_datetime
+            ]
+        )->row();
+
+        $records_total = (int) $total_result->total;
+
+
+        /*
+    |--------------------------------------------------------------------------
+    | SEARCH
+    |--------------------------------------------------------------------------
+    */
+
+        $where_search = '';
+
+        $params = [
+            $user_id,
+            $start_datetime,
+            $end_datetime
+        ];
+
+
+        if ($search !== '') {
+
+            $where_search = "
+            AND (
+                s.reference_no LIKE ?
+                OR s.customer LIKE ?
+                OR p.reference_no LIKE ?
+                OR p.paid_by LIKE ?
+            )
+        ";
+
+            $search_value = '%' . $search . '%';
+
+            $params[] = $search_value;
+            $params[] = $search_value;
+            $params[] = $search_value;
+            $params[] = $search_value;
+        }
+
+
+        /*
+    |--------------------------------------------------------------------------
+    | FILTERED COUNT
+    |--------------------------------------------------------------------------
+    */
+
+        $filtered_sql = "
+        SELECT COUNT(*) AS total
+
+        FROM sma_payments p
+
+        LEFT JOIN sma_sales s
+            ON s.id = p.sale_id
+
+        WHERE p.created_by = ?
+          AND p.type = 'received'
+          AND p.date >= ?
+          AND p.date < ?
+          AND p.sale_id IS NOT NULL
+
+          {$where_search}
+    ";
+
+        $filtered_result = $this->db->query(
+            $filtered_sql,
+            $params
+        )->row();
+
+        $records_filtered = (int) $filtered_result->total;
+
+
+        /*
+    |--------------------------------------------------------------------------
+    | DATA
+    |--------------------------------------------------------------------------
+    */
+
+        $data_params = $params;
+
+        $data_params[] = $length;
+        $data_params[] = $start;
+
+
+        $data_sql = "
+        SELECT
+
+            p.id AS payment_id,
+
+            p.date AS payment_date,
+
+            p.reference_no AS payment_reference,
+
+            p.sale_id,
+
+            s.reference_no AS sale_reference,
+
+            s.customer_id,
+
+            s.customer AS customer_name,
+
+            p.amount,
+
+            p.paid_by,
+
+            p.transaction_id,
+
+            p.cheque_no,
+
+            p.cc_no,
+
+            p.cc_holder,
+
+            p.cc_type,
+
+            p.approval_code,
+
+            p.note
+
+        FROM sma_payments p
+
+        LEFT JOIN sma_sales s
+            ON s.id = p.sale_id
+
+        WHERE p.created_by = ?
+          AND p.type = 'received'
+          AND p.date >= ?
+          AND p.date < ?
+          AND p.sale_id IS NOT NULL
+
+          {$where_search}
+
+        ORDER BY
+            {$order_by} {$order_direction},
+            p.id ASC
+
+        LIMIT ? OFFSET ?
+    ";
+
+
+        $query = $this->db->query(
+            $data_sql,
+            $data_params
+        );
+
+
+        /*
+    |--------------------------------------------------------------------------
+    | FORMAT DATA
+    |--------------------------------------------------------------------------
+    */
+
+        $data = [];
+
+        foreach ($query->result_array() as $row) {
+
+            $paid_by = trim(
+                $row['paid_by']
+            );
+
+            switch (strtolower($paid_by)) {
+
+                case 'cash':
+                    $display_paid_by = 'Cash';
+                    break;
+
+                case 'cc':
+                    $display_paid_by = 'CC';
+                    break;
+
+                case 'cheque':
+                    $display_paid_by = 'Cheque';
+                    break;
+
+                case 'other':
+                    $display_paid_by = 'Other';
+                    break;
+
+                default:
+                    $display_paid_by = $paid_by;
+                    break;
+            }
+
+
+            $data[] = [
+
+                'time' => date(
+                    'd F Y, h:i A',
+                    strtotime($row['payment_date'])
+                ),
+
+                'invoice' => html_escape(
+                    $row['sale_reference']
+                        ?: $row['payment_reference']
+                ),
+
+                'customer' => html_escape(
+                    $row['customer_name']
+                ),
+
+                'amount' => number_format(
+                    (float) $row['amount'],
+                    2
+                ),
+
+                'paid_by' => html_escape(
+                    $display_paid_by
+                )
+            ];
+        }
+        $response = [
+            'draw' => $draw,
+            'recordsTotal' => $records_total,
+            'recordsFiltered' => $records_filtered,
+            'data' => $data,
+            // CI3 CSRF
+            'csrf_hash' => $this->security->get_csrf_hash()
+        ];
+        $this->output
+            ->set_content_type('application/json')
+            ->set_output(
+                json_encode($response)
+            );
+    }
+
+
+
+
+    public function UserWiseCollectionDetails1()
+    {
+        $this->sma->checkPermissions('customers');
+
+        $this->data['error'] = (validation_errors())
+            ? validation_errors()
+            : $this->session->flashdata('error');
+
+        $bc = [
+            ['link' => base_url(), 'page' => lang('home')],
+            ['link' => admin_url('reports'), 'page' => lang('reports')],
+            [
+                'link' => admin_url('reports/UserWiseCollection'),
+                'page' => lang('User Wise Collection')
+            ],
+            [
+                'link' => '#',
+                'page' => lang('Collection Details')
+            ]
+        ];
+
+        $meta = [
+            'page_title' => lang('User Wise Collection Details'),
+            'bc'         => $bc
+        ];
+
+        // -------------------------------------------------
+        // FILTERS
+        // -------------------------------------------------
+
+        $user_id = $this->input->get('user')
+            ? (int) $this->input->get('user')
+            : (int) $this->input->post('user');
+
+        $start_date = $this->input->get('start_date')
+            ? $this->input->get('start_date')
+            : $this->input->post('start_date');
+
+        $end_date = $this->input->get('end_date')
+            ? $this->input->get('end_date')
+            : $this->input->post('end_date');
+
+
+        // -------------------------------------------------
+        // VALIDATE USER
+        // -------------------------------------------------
+
+        if (!$user_id) {
+
+            $this->session->set_flashdata(
+                'error',
+                'Please select a user.'
+            );
+
+            redirect(admin_url('reports/UserWiseCollection'));
+
+            return;
+        }
+
+
+        // -------------------------------------------------
+        // DATE NORMALIZATION
+        // -------------------------------------------------
+
+        if ($start_date) {
+
+            $start_date = str_replace('/', '-', $start_date);
+
+            $start_date = date(
+                'Y-m-d',
+                strtotime($start_date)
+            );
+        }
+
+        if ($end_date) {
+
+            $end_date = str_replace('/', '-', $end_date);
+
+            $end_date = date(
+                'Y-m-d',
+                strtotime($end_date)
+            );
+        }
+
+
+        // Default today
+
+        if (!$start_date) {
+            $start_date = date('Y-m-d');
+        }
+
+        if (!$end_date) {
+            $end_date = date('Y-m-d');
+        }
+
+
+        // -------------------------------------------------
+        // DATETIME RANGE
+        // -------------------------------------------------
+
+        $start_datetime = $start_date . ' 00:00:00';
+
+        $end_datetime = date(
+            'Y-m-d 00:00:00',
+            strtotime($end_date . ' +1 day')
+        );
+
+
+        // -------------------------------------------------
+        // GET USER
+        // -------------------------------------------------
+
+        $user_query = $this->db->query(
+            "
+        SELECT
+            id,
+            first_name,
+            last_name,
+            username
+
+        FROM sma_users
+
+        WHERE id = ?
+
+        LIMIT 1
+        ",
+            [$user_id]
+        );
+
+        $user = $user_query->row();
+
+
+        if (!$user) {
+
+            $this->session->set_flashdata(
+                'error',
+                'User not found.'
+            );
+
+            redirect(admin_url('reports/UserWiseCollection'));
+
+            return;
+        }
+
+
+        // -------------------------------------------------
+        // COLLECTION DETAILS
+        // -------------------------------------------------
+
+        $sql = "
+        SELECT
+
+            p.id AS payment_id,
+
+            p.date AS payment_date,
+
+            p.reference_no AS payment_reference,
+
+            p.sale_id,
+
+            s.reference_no AS sale_reference,
+
+            s.customer_id,
+
+            s.customer AS customer_name,
+
+            p.amount,
+
+            p.paid_by,
+
+            p.transaction_id,
+
+            p.cheque_no,
+
+            p.cc_no,
+
+            p.cc_holder,
+
+            p.cc_type,
+
+            p.approval_code,
+
+            p.note
+
+        FROM sma_payments p
+
+        LEFT JOIN sma_sales s
+            ON s.id = p.sale_id
+
+        WHERE p.created_by = ?
+
+          AND p.date >= ?
+
+          AND p.date < ?
+
+          AND p.sale_id IS NOT NULL
+
+          AND p.type = 'received'
+
+        ORDER BY
+            p.date ASC,
+            p.id ASC
+     ";
+
+        $params = [
+            $user_id,
+            $start_datetime,
+            $end_datetime
+        ];
+
+
+        $query = $this->db->query(
+            $sql,
+            $params
+        );
+
+
+        $records = [];
+
+        foreach ($query->result_array() as $row) {
+
+            $row['amount'] = (float) $row['amount'];
+
+            $records[] = $row;
+        }
+
+
+        // -------------------------------------------------
+        // SEND DATA TO VIEW
+        // -------------------------------------------------
+
+        $this->data['records'] = $records;
+
+        $this->data['user'] = $user;
+
+        $this->data['user_id'] = $user_id;
+
+        $this->data['start_date'] = $start_date;
+
+        $this->data['end_date'] = $end_date;
+
+
+        // -------------------------------------------------
+        // TOTAL COLLECTION
+        // -------------------------------------------------
+
+        $this->data['totalCollection'] = 0;
+
+        foreach ($records as $row) {
+
+            $this->data['totalCollection'] +=
+                (float) $row['amount'];
+        }
+
+
+        // -------------------------------------------------
+        // TOTAL TRANSACTIONS
+        // -------------------------------------------------
+
+        $this->data['totalTransactions'] = count($records);
+
+
+        // -------------------------------------------------
+        // CONSTRUCT PAGE
+        // -------------------------------------------------
+
+
+        // echo '<pre>';
+        // print_r($this->data['records']);
+        // echo '</pre>';
+        // die;
+
+
+        $this->page_construct(
+            'reports/userWiseCollectionDetails',
+            $meta,
+            $this->data
+        );
+    }
+
 
 
 
